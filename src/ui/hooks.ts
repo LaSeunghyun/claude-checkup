@@ -1,7 +1,7 @@
 // 화면 상태 훅: 점검 결과 불러오기, 주소(#) 기반 화면 전환, 테마.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Progress, Severity, Snapshot } from "../shared/types";
-import { getProgress, getSnapshot, rescan as apiRescan } from "./api";
+import { errorText, getProgress, getSnapshot, rescan as apiRescan } from "./api";
 import { isSectionKey, type SectionKey, type ViewMode } from "./model";
 
 // ---- 점검 결과 ----
@@ -36,7 +36,13 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
     // 서버가 아직 점검을 시작하지 않았으면 한 번 깨운다
     if (r.progress.phase === "idle" && !kicked.current) {
       kicked.current = true;
-      await apiRescan().catch(() => undefined);
+      try {
+        await apiRescan();
+      } catch (e) {
+        if (my === gen.current) setState({ status: "error", message: errorText(e, "점검을 시작하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요.") });
+        return;
+      }
+      if (my !== gen.current) return;
     }
     poll(my);
   }, []);
@@ -49,9 +55,9 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
         if (p.phase === "done") return void load();
         if (p.phase === "error") return setState({ status: "error", message: p.message ?? "점검 중에 문제가 생겼어요." });
         setState({ status: "scanning", progress: p });
-      } catch {
+      } catch (e) {
         if (my !== gen.current) return;
-        return setState({ status: "error", message: "점검 서버에 연결하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요." });
+        return setState({ status: "error", message: errorText(e) });
       }
       poll(my);
     }, POLL_MS);
@@ -66,9 +72,9 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
       if (my !== gen.current) return;
       setState({ status: "scanning", progress: p });
       poll(my);
-    } catch {
+    } catch (e) {
       if (my !== gen.current) return;
-      setState({ status: "error", message: "다시 점검을 시작하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요." });
+      setState({ status: "error", message: errorText(e, "다시 점검을 시작하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요.") });
     }
   }, []);
 

@@ -20,6 +20,21 @@ const lines = (n: number, label: string) => Array.from({ length: n }, (_, i) => 
 // 대화 기록 한 줄
 const L = (o: Record<string, unknown>) => JSON.stringify(o);
 
+// 훅 실행 결과 줄. uuid 를 주면 줄 uuid 가 생긴다 (재개 복사본 중복 제거 시험용)
+export const hookLine = (t: string, event: string, command: string, durationMs: number, exitCode = 0, type = "hook_success", stdout = "", uuid?: string) =>
+  L({ type: "attachment", ...(uuid ? { uuid } : {}), timestamp: t, attachment: { type, hookEvent: event, hookName: event, command, durationMs, exitCode, stdout } });
+
+// 설정 파일과 대화 기록만 있는 작은 홈. settings.json 의 Stop 훅에 commands 를 넣고, projects/C--mini/<이름>.jsonl 을 쓴다
+export function buildMiniHome(dest: string, commands: string[], transcripts: Record<string, string[]> = {}): string {
+  const home = resolve(dest);
+  const claude = join(home, ".claude");
+  mkdirSync(join(claude, "projects", "C--mini"), { recursive: true });
+  const hooks = { Stop: [{ hooks: commands.map((command) => ({ type: "command", command })) }] };
+  writeFileSync(join(claude, "settings.json"), JSON.stringify({ hooks }));
+  for (const [name, rows] of Object.entries(transcripts)) writeFileSync(join(claude, "projects", "C--mini", `${name}.jsonl`), rows.join("\n") + "\n");
+  return home;
+}
+
 export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture {
   const home = resolve(dest);
   mkdirSync(home, { recursive: true });
@@ -80,8 +95,7 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     L({ type: "assistant", uuid: `u-${++seq}`, timestamp: t, isSidechain: false, message: { role: "assistant", content: [{ type: "tool_use", id: `toolu_fixture${seq}`, name, input }] } });
   const prompt = (t: string, text: string, extra: Record<string, unknown> = {}) =>
     L({ type: "user", uuid: `u-${++seq}`, timestamp: t, isSidechain: false, message: { role: "user", content: text }, ...extra });
-  const hook = (t: string, event: string, command: string, durationMs: number, exitCode = 0, type = "hook_success", stdout = "") =>
-    L({ type: "attachment", timestamp: t, attachment: { type, hookEvent: event, hookName: event, command, durationMs, exitCode, stdout } });
+  const hook = hookLine;
 
   const convo = [
     prompt(ts(0, 3000), "첫 요청"),
@@ -121,7 +135,7 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     tool(ts(0, 11000), "Edit", { file_path: "x" }),
   ];
   const rest = [
-    // 훅 (복사본에는 넣지 않는다: 훅 실행은 사건 id 가 없어 중복을 걸러내지 않는다)
+    // 훅 (줄 uuid 가 없어 복사본에 넣으면 두 번 센다. uuid 가 있는 줄의 중복 제거는 test/scan.test.ts 의 임시 홈이 본다)
     hook(ts(0, 12000), "UserPromptSubmit", "bun run C:/fx/hooks/ok-hook.mjs", 100),
     hook(ts(1, 12000), "UserPromptSubmit", "bun run C:/fx/hooks/ok-hook.mjs", 200),
     hook(ts(2, 12000), "UserPromptSubmit", "bun run C:/fx/hooks/ok-hook.mjs", 300),

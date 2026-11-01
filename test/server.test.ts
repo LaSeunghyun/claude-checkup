@@ -11,10 +11,23 @@ let dir: string;
 let fx: Fixture;
 let srv: Running;
 let base: string;
-const cookie = () => ({ cookie: `cc_key=${srv.key}` });
+let session: string; // 키를 한 번 바꿔서 받은 `이름=값` 쿠키
+const cookie = () => ({ cookie: session });
 const get = (path: string, headers: Record<string, string> = cookie()) => fetch(base + path, { headers });
 const post = (path: string, body?: unknown, headers: Record<string, string> = cookie()) =>
   fetch(base + path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
+
+// 브라우저가 처음 주소(?key=)를 여는 것과 같다. 쿠키 `이름=값` 만 돌려준다
+const exchange = (s: Running) => fetch(`http://127.0.0.1:${s.port}/?key=${s.key}`, { redirect: "manual" });
+const cookieOf = (r: Response) => (r.headers.get("set-cookie") ?? "").split(";")[0];
+
+// 점검할 것이 없는 빈 홈으로 서버를 하나 더 띄운다
+async function extraServer() {
+  const d = mkdtempSync(join(tmpdir(), "cc-server-extra-"));
+  const s = startServer({ home: d, port: 0, open: false });
+  await s.firstScan;
+  return { s, stop: () => (s.stop(), rmSync(d, { recursive: true, force: true })) };
+}
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "cc-server-"));
@@ -22,6 +35,7 @@ beforeAll(async () => {
   srv = startServer({ home: fx.home, port: 0, open: false });
   base = `http://127.0.0.1:${srv.port}`;
   await srv.firstScan;
+  session = cookieOf(await exchange(srv));
 });
 
 afterAll(() => {
@@ -43,18 +57,77 @@ describe("접근 제어", () => {
     expect((await post("/api/telemetry", { event: "launch" }, {})).status).toBe(403);
   });
   test("틀린 키·쿠키는 403", async () => {
-    expect((await get("/api/progress", { cookie: "cc_key=wrong" })).status).toBe(403);
+    const name = `cc_key_${srv.port}`;
+    expect((await get("/api/progress", { cookie: `${name}=wrong` })).status).toBe(403);
+    expect((await get("/api/progress", { cookie: `${name}=${srv.key}` })).status).toBe(403); // 주소의 키는 쿠키 값으로 못 쓴다
+    expect((await get("/api/progress", { cookie: `cc_key=${session.split("=")[1]}` })).status).toBe(403); // 이름이 다르면 모른다
     expect((await fetch(`${base}/?key=wrong`, { redirect: "manual" })).status).toBe(403);
     expect((await fetch(`${base}/`, { redirect: "manual" })).status).toBe(403);
   });
-  test("첫 접속 ?key= 는 HttpOnly SameSite=Strict 쿠키로 바뀌고 주소에서 키가 사라진다", async () => {
-    const r = await fetch(`${base}/?key=${srv.key}`, { redirect: "manual" });
-    expect(r.status).toBe(302);
-    expect(r.headers.get("location")).toBe("/app");
-    const c = r.headers.get("set-cookie") ?? "";
-    expect(c).toContain(`cc_key=${srv.key}`);
-    expect(c).toContain("HttpOnly");
-    expect(c).toContain("SameSite=Strict");
+  test("첫 접속 ?key= 는 별도 세션 값의 HttpOnly SameSite=Strict 쿠키로 바뀌고 주소에서 키가 사라진다", async () => {
+    const { s, stop } = await extraServer();
+    try {
+      const r = await exchange(s);
+      expect(r.status).toBe(302);
+      expect(r.headers.get("location")).toBe("/app");
+      const c = r.headers.get("set-cookie") ?? "";
+      expect(c).toStartWith(`cc_key_${s.port}=`);
+      expect(c).not.toContain(s.key); // 쿠키 값은 주소의 키와 다른 무작위 값
+      expect(c.split(";")[0].split("=")[1].length).toBeGreaterThanOrEqual(32);
+      expect(c).toContain("HttpOnly");
+      expect(c).toContain("SameSite=Strict");
+      expect((await fetch(`http://127.0.0.1:${s.port}/api/progress`, { headers: { cookie: cookieOf(r) } })).status).toBe(200);
+    } finally {
+      stop();
+    }
+  });
+  test("키는 한 번만 쓴다", async () => {
+    const { s, stop } = await extraServer();
+    try {
+      expect((await exchange(s)).status).toBe(302);
+      const again = await exchange(s);
+      expect(again.status).toBe(403);
+      expect(again.headers.get("set-cookie")).toBeNull();
+    } finally {
+      stop();
+    }
+  });
+  test("두 번 실행해도 첫 탭 쿠키가 산다", async () => {
+    const a = await extraServer();
+    const b = await extraServer();
+    try {
+      const ca = cookieOf(await exchange(a.s));
+      const cb = cookieOf(await exchange(b.s));
+      expect(ca.split("=")[0]).toBe(`cc_key_${a.s.port}`);
+      expect(cb.split("=")[0]).toBe(`cc_key_${b.s.port}`);
+      expect(ca.split("=")[0]).not.toBe(cb.split("=")[0]);
+      // 쿠키는 포트와 상관없이 같은 호스트에 모인다. 둘 다 들어 있어도 각 서버는 제 것만 본다
+      const jar = { cookie: `${ca}; ${cb}` };
+      expect((await fetch(`http://127.0.0.1:${a.s.port}/api/progress`, { headers: jar })).status).toBe(200);
+      expect((await fetch(`http://127.0.0.1:${b.s.port}/api/progress`, { headers: jar })).status).toBe(200);
+      // 대조: 다른 서버의 쿠키만으로는 못 들어간다
+      expect((await fetch(`http://127.0.0.1:${a.s.port}/api/progress`, { headers: { cookie: cb } })).status).toBe(403);
+    } finally {
+      a.stop();
+      b.stop();
+    }
+  });
+  test("보안 헤더: 화면, API, 거절 응답 모두", async () => {
+    const check = (r: Response) => {
+      expect(r.headers.get("x-frame-options")).toBe("DENY");
+      expect(r.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(r.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    };
+    check(await fetch(`${base}/app`));
+    check(await get("/api/progress"));
+    check(await get("/api/progress", {})); // 403
+    check(await fetch(`${base}/nope`)); // 404
+    const html = await (await fetch(`${base}/app`)).text();
+    const asset = /(?:src|href)="(\/[^"]+\.(?:js|css))"/.exec(html)?.[1];
+    expect(asset).toBeDefined(); // 화면이 쓰는 파일도 같은 서버에서 받아진다
+    const a = await fetch(base + asset!);
+    expect(a.status).toBe(200);
+    check(a);
   });
   test("/app 은 화면(HTML 번들)을 준다", async () => {
     const page = await fetch(`${base}/app`);
@@ -105,6 +178,13 @@ describe("API", () => {
     const j = (await r.json()) as { id: string; body: string };
     expect(j.id).toBe("skill:user::good-skill");
     expect(j.body).toContain("# Good skill");
+  });
+  test("원문 응답에 비밀값이 없다", async () => {
+    const r = await get(`/api/item-body?id=${encodeURIComponent("skill:user::good-skill")}`);
+    const body = ((await r.json()) as { body: string }).body;
+    expect(body).toContain("# Good skill"); // 대조: 본문은 그대로 온다
+    expect(body).not.toContain("ghp_");
+    expect(body).toContain("***");
   });
   test("item-body: 알 수 없는 id 는 404, 클라이언트 경로는 받지 않는다", async () => {
     expect((await get("/api/item-body?id=nope")).status).toBe(404);

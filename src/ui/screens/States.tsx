@@ -62,6 +62,28 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
   );
 }
 
+/** 화면을 그리다 예상 못 한 오류가 났을 때 (ErrorBoundary 가 보여 준다). 머리글 없이 이것만 나온다 */
+export function CrashState({ onReload }: { onReload: () => void }) {
+  return (
+    <main className="page">
+      <section className="card" aria-label="화면 오류">
+        <div className="state state--error" role="alert">
+          <span className="state-icon" aria-hidden="true">
+            <Alert size={24} />
+          </span>
+          <h2 className="state-title">화면을 그리지 못했어요</h2>
+          <p className="state-desc">화면에서 예상하지 못한 문제가 생겼어요. 다시 불러오면 대부분 해결돼요. 계속 같으면 앱을 껐다가 다시 실행해 주세요.</p>
+          <div className="state-actions">
+            <button className="btn btn-primary" type="button" onClick={onReload}>
+              다시 불러오기
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 /** .claude 폴더가 없을 때 */
 export function EmptyState({ onRetry }: { onRetry: () => void }) {
   return (

@@ -121,6 +121,7 @@ function applyUsage(inv: Inventory, ux: UsageIndex) {
     h.avgMs = a.runs30 ? Math.round(a.sumMs30 / a.runs30) : 0;
     h.maxMs = a.maxMs30;
     h.failures30 = a.fail30;
+    h.blocked30 = a.blocked30;
     if (a.injN30) h.injectedCharsAvg = Math.round(a.injChars30 / a.injN30);
     e.item.usage = { count30: a.runs30, countAll: a.all, daily30: a.d30.slice(), ...(a.last ? { lastUsed: a.last } : {}) };
   }

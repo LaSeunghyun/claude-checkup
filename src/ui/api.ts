@@ -1,8 +1,8 @@
 // 서버 API 호출은 이 파일 한 곳에서만 한다. 규격은 src/shared/types.ts 아래쪽 주석.
 import type { Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
 
-// 서버는 시작할 때 만든 키를 URL 쿼리로 요구한다.
-// 이름을 몰라도 되도록 화면 주소의 쿼리를 그대로 API 요청에 붙인다.
+// 접근 확인은 서버가 준 쿠키로 하므로 화면은 키를 다루지 않는다.
+// 개발용 서버의 ?mock= 같은 화면 주소의 쿼리는 그대로 API 요청에 붙인다.
 function withQuery(path: string, extra?: Record<string, string>): string {
   const q = new URLSearchParams(window.location.search);
   for (const [k, v] of Object.entries(extra ?? {})) q.set(k, v);
@@ -15,7 +15,23 @@ export type SnapshotResult =
   | { kind: "scanning"; progress: Progress }
   | { kind: "error"; message: string };
 
-const NO_SERVER = "점검 서버에 연결하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요.";
+export const NO_SERVER = "점검 서버에 연결하지 못했어요. 앱이 꺼져 있지 않은지 확인해 주세요.";
+
+/** 서버가 거절하거나 실패로 답한 경우. message 는 화면에 그대로 보여 줘도 되는 말이다 */
+export class ApiError extends Error {}
+
+/** 실패한 이유를 화면에 보여 줄 말로 바꾼다. 서버가 말해 준 이유가 있으면 그것을, 연결 자체가 안 되면 안내를 쓴다 */
+export function errorText(e: unknown, fallback = NO_SERVER): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
+async function okJson<T>(res: Response, fallback: string): Promise<T> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    throw new ApiError(typeof body?.error === "string" ? body.error : fallback);
+  }
+  return (await res.json()) as T;
+}
 
 export async function getSnapshot(): Promise<SnapshotResult> {
   try {
@@ -35,13 +51,11 @@ export async function getSnapshot(): Promise<SnapshotResult> {
 }
 
 export async function getProgress(): Promise<Progress> {
-  const res = await fetch(withQuery("/api/progress"));
-  return (await res.json()) as Progress;
+  return okJson<Progress>(await fetch(withQuery("/api/progress")), "점검 진행 상황을 가져오지 못했어요.");
 }
 
 export async function rescan(): Promise<Progress> {
-  const res = await fetch(withQuery("/api/rescan"), { method: "POST" });
-  return (await res.json()) as Progress;
+  return okJson<Progress>(await fetch(withQuery("/api/rescan"), { method: "POST" }), "다시 점검을 시작하지 못했어요.");
 }
 
 export type BodyResult =

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Settings } from "../shared/types";
 import { getSettings, postViewOpen } from "./api";
 import { Header } from "./components/Header";
@@ -12,12 +12,33 @@ import { ToolsModal } from "./screens/InfoModal";
 import { ItemModal } from "./screens/ItemModal";
 import { SectionView } from "./screens/SectionView";
 import { SettingsModal } from "./screens/SettingsModal";
-import { BootState, EmptyState, ErrorState, ScanningState } from "./screens/States";
+import { BootState, CrashState, EmptyState, ErrorState, ScanningState } from "./screens/States";
 
 type Overlay = null | "settings" | "tools";
 
+// 화면을 그리다 던져진 오류를 잡아 빈 화면 대신 안내를 보여 준다
+class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error(error);
+  }
+  render() {
+    return this.state.failed ? <CrashState onReload={() => window.location.reload()} /> : this.props.children;
+  }
+}
+
 export default function App() {
-  const { theme, toggle } = useTheme();
+  return (
+    <ErrorBoundary>
+      <Shell />
+    </ErrorBoundary>
+  );
+}
+
+function Shell() {  const { theme, toggle } = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
   const { state, rescan } = useSnapshot();
   const [route, go] = useRoute();

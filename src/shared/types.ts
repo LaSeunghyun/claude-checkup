@@ -35,7 +35,8 @@ export interface HookInfo {
   runs30: number;
   avgMs: number;
   maxMs: number;
-  failures30: number;
+  failures30: number; // 종료 코드 2(일부러 막음)는 빼고 센다
+  blocked30: number; // 종료 코드 2 로 막은 횟수
   injectedCharsAvg?: number; // hook_additional_context 평균 글자 수
 }
 

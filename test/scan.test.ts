@@ -1,12 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { appendFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scan } from "../src/scan";
 import { isSecretName, readText } from "../src/scan/fsutil";
+import { redactCommand } from "../src/scan/inventory";
+import { isSectionKey } from "../src/ui/model";
 import { memoryLinks, parseFrontmatter, estimateTokens, summarize } from "../src/scan/text";
 import type { Finding, Item, Snapshot } from "../src/shared/types";
-import { buildFixtureHome, type Fixture } from "./fixtures/build";
+import { buildFixtureHome, buildMiniHome, hookLine, type Fixture } from "./fixtures/build";
 
 let dir: string;
 let fx: Fixture;
@@ -78,6 +80,115 @@ describe("비밀 파일 보호", () => {
   test("훅 명령 속 비밀 인자는 가린다", () => {
     const h = snap.items.find((i) => i.hook?.command.includes("unrun-hook"));
     expect(h?.hook?.command).toContain("***");
+  });
+});
+
+describe("보안 보강: 훅 명령 가리기, 막음, 중복", () => {
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  const at = (ms = 0) => new Date(now.getTime() - 60_000 - ms).toISOString();
+  const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`; // 줄 uuid
+  // 임시 홈 하나를 만들고 점검한 뒤 지운다
+  async function inMini<T>(commands: string[], transcripts: Record<string, string[]>, then: (s: Snapshot, home: string) => T | Promise<T>): Promise<T> {
+    const d = mkdtempSync(join(tmpdir(), "cc-mini-"));
+    try {
+      const home = buildMiniHome(d, commands, transcripts);
+      return await then(await scan(home, { now, cache: false }), home);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  }
+  const hookOf = (s: Snapshot, needle: string) => s.items.find((i) => i.hook?.command.includes(needle))!.hook!;
+
+  test("훅 이름과 id 에 토큰이 없다", async () => {
+    const cmds = [
+      "npx -y notifier --token=ghp_ABCDEFGHIJKLMNOPQRS",
+      "curl https://api.telegram.org/bot123456:ABCdefGHIjklMNOpqr/sendMessage",
+      "curl -u user:pass https://h",
+      'curl -H "Authorization: Basic dXNlcjpwYXNz" https://h',
+    ];
+    const rows = cmds.map((c, i) => hookLine(at(i * 1000), "Stop", c, 10, 0, "hook_success", "", uid(100 + i)));
+    await inMini(cmds, { s1: rows }, (s) => {
+      const json = JSON.stringify(s);
+      for (const bad of ["ghp_", "ABCdefGHI", "user:pass", "dXNlcjpwYXNz"]) expect(json).not.toContain(bad);
+      const hooks = s.items.filter((i) => i.hook);
+      expect(hooks).toHaveLength(4);
+      for (const h of hooks) expect(h.hook!.runs30).toBe(1); // 가려도 대화 기록과는 원문으로 이어진다
+    });
+  });
+
+  test("redactCommand: 모양별로 가리고, 멀쩡한 명령은 그대로 둔다", () => {
+    const secret: [string, string][] = [
+      ["tool --token=ghp_ABCDEFGHIJKLMNOPQRS", "ghp_"],
+      ["tool --token abcdef123", "abcdef123"],
+      ["tool --key=abcdef123", "abcdef123"],
+      ["tool --key abcdef123", "abcdef123"],
+      ["curl https://user:hunter2@host.example/x", "hunter2"],
+      ["curl https://api.telegram.org/bot123456:ABCdefGHIjklMNOpqr/sendMessage", "ABCdefGHI"],
+      ["curl -X POST https://hooks.slack.com/services/T00000000/B00000000/abcdEFGHijklMNOPqrst", "T00000000"],
+      ['curl -H "Authorization: Basic dXNlcjpwYXNz" https://h', "dXNlcjpwYXNz"],
+      ["curl -H 'Authorization: Bearer abc.def.ghi' https://h", "abc.def.ghi"],
+      ["curl -u user:pass https://h", "user:pass"],
+      ["curl --user user:pass https://h", "user:pass"],
+      ["run " + "a1B2c3D4".repeat(4), "a1B2c3D4a1B2c3D4"], // 32자 영숫자 덩어리
+    ];
+    for (const [cmd, leak] of secret) {
+      const out = redactCommand(cmd);
+      expect(out).not.toContain(leak);
+      expect(out).toContain("***");
+    }
+    // 음성 대조: 비밀이 아닌 것은 바뀌지 않는다
+    for (const ok of [
+      "bun run C:/fx/hooks/ok-hook.mjs",
+      "git push -u origin main",
+      "git clone ssh://git@github.com/o/r.git",
+      "curl https://example.com/api/v1/items",
+      "run " + "a1B2c3D4".repeat(4).slice(0, 31), // 31자는 덩어리로 보지 않는다
+    ]) expect(redactCommand(ok)).toBe(ok);
+  });
+
+  test("종료 코드 2는 막음", async () => {
+    const guard = "bun run C:/fx/hooks/guard-hook.mjs";
+    const bad = "bun run C:/fx/hooks/bad-hook.mjs";
+    const rows = [
+      ...[0, 1, 2].map((i) => hookLine(at(i * 1000), "Stop", guard, 20, 2, "hook_blocking_error", "", uid(200 + i))),
+      hookLine(at(9000), "Stop", bad, 20, 1, "hook_non_blocking_error", "", uid(300)), // 대조: 진짜 실패는 여전히 잡힌다
+    ];
+    await inMini([guard, bad], { s1: rows }, (s) => {
+      expect(hookOf(s, "guard-hook")).toMatchObject({ runs30: 3, failures30: 0, blocked30: 3 });
+      expect(hookOf(s, "bad-hook")).toMatchObject({ runs30: 1, failures30: 1, blocked30: 0 });
+      const failing = s.findings.filter((f) => f.rule === "failing-hook");
+      expect(failing).toHaveLength(1);
+      expect(failing[0].items[0]).toContain("bad-hook");
+    });
+  });
+
+  test("재개 복사본의 훅 기록은 한 번만", async () => {
+    const cmd = "bun run C:/fx/hooks/dup-hook.mjs";
+    const ok = hookLine(at(6000), "Stop", cmd, 10, 0, "hook_success", "", uid(401));
+    const fail = hookLine(at(5000), "Stop", cmd, 30, 1, "hook_non_blocking_error", "", uid(402));
+    await inMini([cmd], { a: [ok, fail], b: [ok, fail], c: [fail] }, (s) => {
+      expect(hookOf(s, "dup-hook")).toMatchObject({ runs30: 2, failures30: 1 }); // 같은 uuid 줄은 세 파일에 있어도 한 번
+    });
+    // 대조: uuid 가 다른 두 줄은 따로 센다
+    const fail2 = hookLine(at(4000), "Stop", cmd, 30, 1, "hook_non_blocking_error", "", uid(403));
+    await inMini([cmd], { a: [fail], b: [fail2] }, (s) => expect(hookOf(s, "dup-hook").failures30).toBe(2));
+  });
+
+  test("있는데 JSON 으로 못 읽은 설정 파일은 안내에 나온다", async () => {
+    await inMini(["bun run C:/fx/hooks/x-hook.mjs"], {}, async (s0, home) => {
+      expect(s0.warnings.join("\n")).not.toContain(".claude.json"); // 대조: 파일이 없으면 안내하지 않는다
+      writeFileSync(join(home, ".claude.json"), "{ broken");
+      const s = await scan(home, { now, cache: false });
+      expect(s.warnings.join("\n")).toContain("~/.claude.json");
+    });
+  });
+});
+
+describe("화면 모델", () => {
+  test("isSectionKey 는 자기 이름만 받고 상속 이름(constructor)은 거른다", () => {
+    for (const k of ["instruction", "skill", "hook", "mcp"]) expect(isSectionKey(k)).toBe(true);
+    for (const k of ["constructor", "toString", "__proto__", "hasOwnProperty", "", null, undefined]) expect(isSectionKey(k as string | null | undefined)).toBe(false);
   });
 });
 

@@ -11930,6 +11930,7 @@
     "avgMs": 1800,
     "maxMs": 4100,
     "failures30": 0,
+    "blocked30": 0,
     "injectedCharsAvg": 3200
    }
   },
@@ -12001,6 +12002,7 @@
     "avgMs": 3400,
     "maxMs": 9800,
     "failures30": 0,
+    "blocked30": 0,
     "injectedCharsAvg": 900
    }
   },
@@ -12072,7 +12074,8 @@
     "runs30": 3880,
     "avgMs": 410,
     "maxMs": 2200,
-    "failures30": 6
+    "failures30": 6,
+    "blocked30": 0
    }
   },
   {
@@ -12141,7 +12144,8 @@
     "runs30": 640,
     "avgMs": 780,
     "maxMs": 3100,
-    "failures30": 0
+    "failures30": 0,
+    "blocked30": 0
    }
   },
   {
@@ -12210,6 +12214,7 @@
     "avgMs": 300,
     "maxMs": 900,
     "failures30": 0,
+    "blocked30": 0,
     "injectedCharsAvg": 220
    }
   },
@@ -12280,7 +12285,8 @@
     "runs30": 0,
     "avgMs": 0,
     "maxMs": 0,
-    "failures30": 0
+    "failures30": 0,
+    "blocked30": 0
    }
   }
  ],

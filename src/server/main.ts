@@ -1,4 +1,4 @@
-// 로컬 서버: 127.0.0.1 임의 포트, 시작할 때 만든 키로 접근을 막는다.
+// 로컬 서버: 127.0.0.1 임의 포트. 시작할 때 만든 키는 주소로 한 번만 쓰고, 이후에는 별도 세션 쿠키로 접근을 막는다.
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -9,8 +9,14 @@ import { scan } from "../scan";
 import type { Item, Progress, Settings, Snapshot } from "../shared/types";
 import { buildEvent, loadSettings, sendTelemetry, setTelemetry } from "./telemetry";
 
-const COOKIE = "cc_key";
 const BODY_MAX = 400_000;
+
+// 모든 응답에 붙는 보안 헤더: 다른 사이트가 화면을 iframe 으로 덮어씌우거나(클릭 가로채기) 파일 종류를 추측하지 못하게 한다
+const SECURITY_HEADERS = {
+  "x-frame-options": "DENY",
+  "x-content-type-options": "nosniff",
+  "content-security-policy": "frame-ancestors 'none'",
+};
 
 export interface ServerOpts {
   home: string;
@@ -31,8 +37,10 @@ export interface Running {
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS, ...headers },
   });
+
+const noContent = (): Response => new Response(null, { status: 204, headers: SECURITY_HEADERS });
 
 function safeEq(a: string, b: string): boolean {
   const x = Buffer.from(a);
@@ -48,8 +56,16 @@ function cookieOf(req: Request, name: string): string | null {
   return null;
 }
 
-// 항목 종류별 본문. 파일이 있는 종류만 파일을 읽는다 (경로는 항상 스냅샷의 항목에서 얻는다)
-function bodyOf(item: Item, home: string): { status: number; body?: string; error?: string } {
+type Body = { status: number; body?: string; error?: string };
+
+// 항목 종류별 본문. 어떤 글이든 화면에 나가기 전에 비밀값 모양을 가린다
+function bodyOf(item: Item, home: string): Body {
+  const r = rawBodyOf(item, home);
+  return r.body != null ? { ...r, body: redactSecrets(r.body) } : r;
+}
+
+// 파일이 있는 종류만 파일을 읽는다 (경로는 항상 스냅샷의 항목에서 얻는다)
+function rawBodyOf(item: Item, home: string): Body {
   if (item.hook) {
     const h = item.hook;
     return { status: 200, body: `실행 시점: ${h.event}\n${h.matcher ? `대상: ${h.matcher}\n` : ""}실행 명령: ${h.command}\n` };
@@ -70,8 +86,12 @@ function bodyOf(item: Item, home: string): { status: number; body?: string; erro
 
 export function startServer(opts: ServerOpts): Running {
   const home = resolve(opts.home);
-  const key = opts.key ?? randomBytes(24).toString("hex");
+  const key = opts.key ?? randomBytes(24).toString("hex"); // 주소에 한 번만 쓰는 키
+  const session = randomBytes(24).toString("hex"); // 쿠키에 담기는 값. 주소의 키와 따로 만든다
+  let keyUsed = false;
   let port = 0;
+  // 같은 호스트의 쿠키는 포트와 상관없이 모이므로, 서버를 두 번 띄워도 서로 덮어쓰지 않게 이름에 포트를 넣는다
+  const cookieName = () => `cc_key_${port}`;
 
   let progress: Progress = { phase: "idle", filesDone: 0, filesTotal: 0 };
   let snapshot: Snapshot | null = null;
@@ -117,6 +137,26 @@ export function startServer(opts: ServerOpts): Running {
     return running;
   }
 
+  // 화면(HTML 번들)은 Bun 이 직접 내보내는 응답이라 헤더를 못 붙인다. 안쪽 서버에 두고 여기서 받아 보안 헤더를 붙여 내보낸다
+  let uiServer: ReturnType<typeof Bun.serve> | null = null;
+  const uiOrigin = () => {
+    uiServer ??= Bun.serve({ hostname: "127.0.0.1", port: 0, development: false, routes: { "/": index }, fetch: () => new Response(null, { status: 404 }) });
+    return `http://127.0.0.1:${uiServer.port}`;
+  };
+  const serveUi = async (req: Request): Promise<Response> => {
+    if (!hostOk(req)) return json({ error: "허용되지 않은 주소예요." }, 403);
+    if (req.method !== "GET" && req.method !== "HEAD") return json({ error: "찾을 수 없어요." }, 404);
+    const u = new URL(req.url);
+    const headers: Record<string, string> = {};
+    for (const h of ["if-none-match", "if-modified-since"]) {
+      const v = req.headers.get(h);
+      if (v) headers[h] = v;
+    }
+    const r = await fetch(`${uiOrigin()}${u.pathname === "/app" ? "/" : u.pathname}${u.search}`, { method: req.method, headers });
+    if (r.status === 404) return json({ error: "찾을 수 없어요." }, 404);
+    return new Response(r.body, { status: r.status, headers: { ...Object.fromEntries(r.headers), ...SECURITY_HEADERS } });
+  };
+
   const hostOk = (req: Request): boolean => {
     const h = (req.headers.get("host") ?? "").toLowerCase();
     return h === `127.0.0.1:${port}` || h === `localhost:${port}`;
@@ -129,8 +169,8 @@ export function startServer(opts: ServerOpts): Running {
   // /api/* 공통 검사: Host, 쿠키, (쓰기 요청이면) Origin
   const api = (fn: (req: Request) => Response | Promise<Response>) => async (req: Request): Promise<Response> => {
     if (!hostOk(req)) return json({ error: "허용되지 않은 주소예요." }, 403);
-    const c = cookieOf(req, COOKIE);
-    if (!c || !safeEq(c, key)) return json({ error: "접근 키가 없어요. 터미널에 출력된 주소로 다시 열어 주세요." }, 403);
+    const c = cookieOf(req, cookieName());
+    if (!c || !safeEq(c, session)) return json({ error: "접근 키가 없어요. 터미널에 출력된 주소로 다시 열어 주세요." }, 403);
     if (req.method !== "GET" && !originOk(req)) return json({ error: "허용되지 않은 요청이에요." }, 403);
     try {
       return await fn(req);
@@ -143,23 +183,29 @@ export function startServer(opts: ServerOpts): Running {
     hostname: "127.0.0.1",
     port: opts.port ?? 0,
     routes: {
-      // 첫 접속: ?key= 를 확인하고 쿠키로 바꾼 뒤 주소에서 키를 지운다
+      // 첫 접속: ?key= 를 한 번만 받아 세션 쿠키로 바꾸고, 주소에서 키를 지운다. 쓴 키는 다시 못 쓴다
       "/": (req) => {
         if (!hostOk(req)) return json({ error: "허용되지 않은 주소예요." }, 403);
         const q = new URL(req.url).searchParams.get("key");
-        const c = cookieOf(req, COOKIE);
-        const ok = (q != null && safeEq(q, key)) || (c != null && safeEq(c, key));
-        if (!ok) return json({ error: "접근 키가 없어요. 터미널에 출력된 주소로 다시 열어 주세요." }, 403);
+        const c = cookieOf(req, cookieName());
+        const viaCookie = c != null && safeEq(c, session);
+        const viaKey = !viaCookie && q != null && !keyUsed && safeEq(q, key);
+        if (!viaCookie && !viaKey) {
+          const used = q != null && keyUsed && safeEq(q, key);
+          return json({ error: used ? "이 주소는 이미 한 번 썼어요. 열려 있는 탭을 쓰거나, 앱을 다시 실행해서 새 주소로 열어 주세요." : "접근 키가 없어요. 터미널에 출력된 주소로 다시 열어 주세요." }, 403);
+        }
+        if (viaKey) keyUsed = true;
         return new Response(null, {
           status: 302,
           headers: {
             location: "/app",
-            "set-cookie": `${COOKIE}=${key}; HttpOnly; SameSite=Strict; Path=/`,
+            ...(viaKey ? { "set-cookie": `${cookieName()}=${session}; HttpOnly; SameSite=Strict; Path=/` } : {}),
             "cache-control": "no-store",
+            ...SECURITY_HEADERS,
           },
         });
       },
-      "/app": index,
+      "/app": serveUi,
       "/api/snapshot": {
         GET: api(() => {
           if (snapshot) return json(snapshot);
@@ -197,7 +243,7 @@ export function startServer(opts: ServerOpts): Running {
           const abs = resolve(expandHome(item.path, home));
           if (isSecretName(abs) || !existsSync(abs)) return json({ error: "파일을 찾지 못했어요." }, 404);
           reveal(abs);
-          return new Response(null, { status: 204 });
+          return noContent();
         }),
       },
       "/api/settings": {
@@ -235,11 +281,11 @@ export function startServer(opts: ServerOpts): Running {
             const ev = s.telemetry === "on" ? buildEvent(s, snapshot, body) : null;
             if (ev) sendTelemetry(ev);
           }
-          return new Response(null, { status: 204 });
+          return noContent();
         }),
       },
     },
-    fetch: () => json({ error: "찾을 수 없어요." }, 404),
+    fetch: (req) => (new URL(req.url).pathname.startsWith("/api/") ? json({ error: "찾을 수 없어요." }, 404) : serveUi(req)),
   });
   port = server.port ?? 0;
 
@@ -247,7 +293,16 @@ export function startServer(opts: ServerOpts): Running {
   const firstScan = startScan();
   track("launch");
   if (opts.open) openBrowser(url);
-  return { url, key, port, stop: () => server.stop(true), firstScan };
+  return {
+    url,
+    key,
+    port,
+    stop: () => {
+      server.stop(true);
+      uiServer?.stop(true);
+    },
+    firstScan,
+  };
 }
 
 function reveal(abs: string) {

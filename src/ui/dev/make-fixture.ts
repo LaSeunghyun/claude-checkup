@@ -374,7 +374,7 @@ for (const h of HOOKS) {
   });
   it.hook = {
     event: h.event, matcher: h.matcher, command: `bun run ~/.claude/harness/hooks/${h.script}`,
-    runs30: h.runs, avgMs: h.avg, maxMs: h.max, failures30: h.fail, injectedCharsAvg: h.inject,
+    runs30: h.runs, avgMs: h.avg, maxMs: h.max, failures30: h.fail, blocked30: 0, injectedCharsAvg: h.inject,
   };
   it.usage.count30 = h.runs;
   it.usage.daily30 = daily(h.runs);

@@ -1,11 +1,11 @@
 // 대화 기록(jsonl) 스트리밍 집계 + 파일별 캐시.
-// 파일마다 "날짜별 횟수" 로 접어 두므로 캐시는 now 와 무관하게 재사용된다.
+// 파일마다 "날짜별 횟수"(훅은 실행 한 번씩) 로 접어 두므로 캐시는 now 와 무관하게 재사용된다.
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import { listDir, isSecretName, readJson, slash, claudeRelKey } from "./fsutil";
 import { estimateTokens } from "./text";
 
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 
 // 재개된 대화는 이전 기록을 새 파일에 복사해 오므로, 같은 사건이 여러 파일에 있을 수 있다.
 // 그래서 사건마다 id(tool_use id 또는 줄 uuid)를 남겨 두고 합칠 때 중복을 거른다.
@@ -13,10 +13,17 @@ export interface FileAgg {
   lt?: string; // 이 파일에서 본 가장 늦은 timestamp
   ev: [string, string, string][]; // [키, timestamp, id]. 키: S|스킬 U|직접 부름 A|에이전트 M|서비스 R|읽은 파일 P|요청
   x: Record<string, Record<string, string[]>>; // 도구 종류(read, bash, other) -> 날짜 -> id 목록
-  h: Record<string, Record<string, number[]>>; // 훅: "이벤트|명령" -> 날짜 -> [실행, 시간합, 최대, 실패, 글 주입 횟수, 주입 글자합]
+  hv: HookEv[]; // 훅 실행 한 번마다 한 줄
   l: Record<string, string>; // 훅별 마지막 timestamp ("H|" + 훅 키)
   e: Record<string, Record<string, number[]>>; // 이벤트별 additional_context: 날짜 -> [횟수, 글자합, 토큰합]
 }
+
+// 훅 실행 한 번: [훅 키("이벤트|명령 해시"), 날짜, 줄 uuid 끝 10자(없으면 ""), 걸린 ms, 표시(1 실패 2 막음), 시작 때 넣은 글자 수]
+// id 가 있으면 복사본 중복을 거르고, ""(uuid 없는 줄)는 거르지 않는다
+export type HookEv = [string, string, string, number, number, number];
+
+const HOOK_FAIL = 1;
+const HOOK_BLOCKED = 2;
 
 interface CacheFile {
   v: number;
@@ -55,7 +62,7 @@ export function dayKey(d: Date): string {
 }
 
 function emptyAgg(): FileAgg {
-  return { ev: [], x: {}, h: {}, l: {}, e: {} };
+  return { ev: [], x: {}, hv: [], l: {}, e: {} };
 }
 
 const shortId = (id: unknown, fallback: string): string => (typeof id === "string" && id ? id : fallback).slice(-10);
@@ -172,23 +179,18 @@ function handleAttachment(o: Obj, a: FileAgg, day: string, ts: string) {
   }
   const isErr = t.includes("hook") && t.includes("error");
   if (t !== "hook_success" && !isErr) return;
-  const cmd = typeof at.command === "string" ? at.command : "";
+  // 막음(blocking) 오류 줄은 명령이 blockingError 안에 있을 수 있다
+  const cmd = typeof at.command === "string" ? at.command : typeof at.blockingError?.command === "string" ? at.blockingError.command : "";
   const ev = typeof at.hookEvent === "string" ? at.hookEvent : "";
   if (!cmd || !ev) return;
   const dur = Number(at.durationMs) || 0;
-  const code = at.exitCode == null ? (isErr ? 1 : 0) : Number(at.exitCode);
-  const fail = isErr || code !== 0 ? 1 : 0;
+  // 종료 코드 2 는 훅이 일부러 막은 것이라 실패가 아니다. 막음 type 이 아닌 오류(non_blocking)는 코드와 상관없이 실패로 센다
+  const blockingType = t.includes("blocking") && !t.includes("non_blocking");
+  const code = at.exitCode == null ? (blockingType ? 2 : isErr ? 1 : 0) : Number(at.exitCode);
+  const blocked = code === 2 && (blockingType || !isErr);
+  const fail = !blocked && (isErr || code !== 0);
   const key = hookKey(ev, cmd);
-  const d = ((a.h[key] ??= {})[day] ??= [0, 0, 0, 0, 0, 0]);
-  d[0]++;
-  d[1] += dur;
-  if (dur > d[2]) d[2] = dur;
-  d[3] += fail;
-  const inj = injectedChars(at.stdout, ev);
-  if (inj > 0) {
-    d[4]++;
-    d[5] += inj;
-  }
+  a.hv.push([key, day, shortId(o.uuid, ""), dur, (fail ? HOOK_FAIL : 0) | (blocked ? HOOK_BLOCKED : 0), injectedChars(at.stdout, ev)]);
   const lk = "H|" + key;
   if (!a.l[lk] || ts > a.l[lk]) a.l[lk] = ts;
 }
@@ -343,6 +345,7 @@ export interface HookAcc {
   sumMs30: number;
   maxMs30: number;
   fail30: number;
+  blocked30: number;
   injN30: number;
   injChars30: number;
   all: number;
@@ -374,6 +377,7 @@ export function aggregate(files: TranscriptFile[], days: string[]): UsageIndex {
   const events = new Map<string, { n: number; chars: number; tokens: number }>();
   const seen = new Set<string>(); // 중복 제거: 사건 키 + id
   const seenTool = new Set<string>();
+  const seenHook = new Set<string>(); // 훅 실행: 훅 키 + 줄 uuid
   const tools30 = { read: 0, bash: 0, mcp: 0, other: 0 };
   let sessions30 = 0;
 
@@ -404,25 +408,33 @@ export function aggregate(files: TranscriptFile[], days: string[]): UsageIndex {
       }
     }
 
-    for (const [key, byDay] of Object.entries(a.h)) {
+    for (const [key, day, id, dur, flags, inj] of a.hv) {
       let h = hooks.get(key);
       if (!h) {
-        hooks.set(key, (h = { runs30: 0, sumMs30: 0, maxMs30: 0, fail30: 0, injN30: 0, injChars30: 0, all: 0, d30: new Array(n).fill(0) }));
+        hooks.set(key, (h = { runs30: 0, sumMs30: 0, maxMs30: 0, fail30: 0, blocked30: 0, injN30: 0, injChars30: 0, all: 0, d30: new Array(n).fill(0) }));
       }
-      for (const [day, v] of Object.entries(byDay)) {
-        h.all += v[0];
-        const i = idx.get(day);
-        if (i === undefined) continue;
-        h.d30[i] += v[0];
-        h.runs30 += v[0];
-        h.sumMs30 += v[1];
-        if (v[2] > h.maxMs30) h.maxMs30 = v[2];
-        h.fail30 += v[3];
-        h.injN30 += v[4];
-        h.injChars30 += v[5];
+      if (id) {
+        const sig = key + "\0" + id; // 재개 복사본에 있는 같은 줄은 한 번만
+        if (seenHook.has(sig)) continue;
+        seenHook.add(sig);
       }
-      const l = a.l["H|" + key];
-      if (l && (!h.last || l > h.last)) h.last = l;
+      h.all++;
+      const i = idx.get(day);
+      if (i === undefined) continue;
+      h.d30[i]++;
+      h.runs30++;
+      h.sumMs30 += dur;
+      if (dur > h.maxMs30) h.maxMs30 = dur;
+      if (flags & HOOK_FAIL) h.fail30++;
+      if (flags & HOOK_BLOCKED) h.blocked30++;
+      if (inj > 0) {
+        h.injN30++;
+        h.injChars30 += inj;
+      }
+    }
+    for (const [lk, l] of Object.entries(a.l)) {
+      const h = lk.startsWith("H|") ? hooks.get(lk.slice(2)) : undefined;
+      if (h && (!h.last || l > h.last)) h.last = l;
     }
     for (const [ev, byDay] of Object.entries(a.e)) {
       let e = events.get(ev);

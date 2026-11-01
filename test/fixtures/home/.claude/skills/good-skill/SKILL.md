@@ -13,3 +13,4 @@ First paragraph is ignored because the description exists.
 ## 절차
 1. 변경을 읽는다.
 2. 위험한 곳을 요약한다.
+3. 토큰 예시 ghp_FAKEFAKEFAKEFAKE1234 는 화면에 나오면 안 된다.
