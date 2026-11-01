@@ -576,12 +576,12 @@ for (const f of findings) {
   if (f.rule === "unused-plugin" || f.rule === "unused-items") {
     const tokens = tokensOfIds(f.items);
     f.gain = { text: `대화마다 ${a4(tokens)}이 줄어요`, upTo: false, tokens };
-  } else if (f.rule === "memory-index-truncated") f.gain = { text: "읽히지 않던 14줄이 다시 읽혀요", upTo: true, count: 14 };
-  else if (f.rule === "broken-link") f.gain = { text: "끊긴 링크 2곳이 없어져요", upTo: true, count: 2 };
-  else if (f.rule === "unreachable-md") f.gain = { text: `길 없는 파일 ${n}개가 줄어요`, upTo: true, count: n };
+  } else if (f.rule === "memory-index-truncated") f.gain = { text: "최대 14줄이 다시 읽혀요", upTo: true, count: 14 };
+  else if (f.rule === "broken-link") f.gain = { text: "최대 2곳의 끊긴 링크가 없어져요", upTo: true, count: 2 };
+  else if (f.rule === "unreachable-md") f.gain = { text: `최대 ${n}개의 길 없는 파일이 줄어요`, upTo: true, count: n };
   else if (f.rule === "unread-md") f.gain = { text: `안 읽히던 파일 ${n}개를 정리해요`, upTo: false, count: n };
-  else if (f.rule === "duplicate-rule") f.gain = { text: "겹치는 줄 4개가 한 곳으로 모여요", upTo: true, count: 4 };
-  else if (f.rule === "missing-description" || f.rule === "similar-description") f.gain = { text: "AI가 알맞은 것을 고르기 쉬워져요", upTo: true, count: 1 };
+  else if (f.rule === "duplicate-rule") f.gain = { text: "최대 4개의 겹치는 줄이 한 곳으로 모여요", upTo: true, count: 4 };
+  else if (f.rule === "missing-description" || f.rule === "similar-description") f.gain = { text: "최대 1개를 AI가 더 알맞게 고르게 돼요", upTo: true, count: 1 };
 }
 
 for (const f of findings) {

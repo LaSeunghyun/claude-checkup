@@ -33,7 +33,6 @@ export function GainLine({ finding }: { finding: Finding }) {
   return (
     <p className="gain">
       <span>얻는 것</span>
-      {g.upTo && <span className="badge badge-success">최대</span>}
       <span className="gain-text">{g.text}</span>
     </p>
   );
