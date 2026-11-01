@@ -1,5 +1,6 @@
 // 화면들이 같이 쓰는 값: 점검 모델, 항목 모달 열기, 화면 이동
 import { createContext, useContext } from "react";
+import type { Finding } from "../shared/types";
 import type { Route } from "./hooks";
 import type { Model } from "./model";
 
@@ -8,6 +9,7 @@ export interface Ui {
   openItem: (id: string) => void;
   go: (r: Route, replace?: boolean) => void;
   openTools: () => void;
+  openFix: (finding: Finding) => void;
 }
 
 export const UiContext = createContext<Ui | null>(null);

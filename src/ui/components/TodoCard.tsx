@@ -1,5 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import type { Finding } from "../../shared/types";
+import { useClaudeEnv } from "../hooks";
+import { CopyButton } from "./CopyButton";
 
 interface TodoCardProps {
   finding: Finding;
@@ -23,6 +25,20 @@ export function StepList({ finding }: { finding: Finding }) {
       </ol>
       {finding.command && <pre className="code-block">{finding.command}</pre>}
     </div>
+  );
+}
+
+/** 고치기 버튼. claude 를 못 쓰는 환경이면 같은 자리에 "맡길 말 복사"가 온다. manual 진단에는 없다 */
+export function FixAction({ finding, onFix }: { finding: Finding; onFix: (f: Finding) => void }) {
+  const env = useClaudeEnv();
+  if (finding.fixKind === "manual") return null;
+  if (finding.fixKind === "claude" && env && !env.available) {
+    return <CopyButton text={finding.prompt} label="Claude에게 맡길 말 복사" />;
+  }
+  return (
+    <button className="btn btn-secondary btn-sm" type="button" onClick={() => onFix(finding)}>
+      고치기
+    </button>
   );
 }
 
@@ -53,9 +69,7 @@ export function TodoCard({ finding, onFix, rank, title, evidence }: TodoCardProp
         <GainLine finding={finding} />
         <p className="sub">{evidence ?? finding.evidence}</p>
         <div className="acts">
-          <button className="btn btn-secondary btn-sm" type="button" onClick={() => onFix(finding)}>
-            고치기
-          </button>
+          <FixAction finding={finding} onFix={onFix} />
           <button className="btn btn-ghost btn-sm" type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}>
             {open ? "순서 접기" : "직접 하는 순서"}
           </button>

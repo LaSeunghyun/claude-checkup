@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Finding } from "../../shared/types";
+import { revealItem } from "../api";
 import { useUi } from "../context";
 import { KIND_LABEL, SEVERITY_BADGE, SEVERITY_LABEL, SEVERITY_ORDER, num } from "../format";
 import { itemsByIds } from "../model";
+import { CopyButton } from "./CopyButton";
+import { FixAction, StepList } from "./TodoCard";
 
 const CHIP_LIMIT = 8;
 const ROW_LIMIT = 5; // 묶음 카드는 앞의 몇 건만 펼쳐 둔다
@@ -27,6 +30,41 @@ export function ItemChips({ ids, label }: { ids: string[]; label?: string }) {
           {all ? "접기" : `외 ${items.length - CHIP_LIMIT}개 더 보기`}
         </button>
       )}
+    </div>
+  );
+}
+
+/** 진단 한 건의 행동 줄: 고치기(또는 복사), manual 이면 맡길 말·명령 복사와 파일 위치 열기, 직접 하는 순서 */
+export function FindingActions({ finding }: { finding: Finding }) {
+  const { openFix } = useUi();
+  const [open, setOpen] = useState(false);
+  const [revealFailed, setRevealFailed] = useState(false);
+  const panelId = useId();
+  const manual = finding.fixKind === "manual";
+  const target = finding.items[0];
+  return (
+    <div className="finding-actions">
+      <div className="acts">
+        <FixAction finding={finding} onFix={openFix} />
+        {manual && finding.prompt && <CopyButton text={finding.prompt} label="맡길 말 복사" />}
+        {manual && finding.command && <CopyButton text={finding.command} label="명령 복사" />}
+        {manual && target && (
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={async () => setRevealFailed(!(await revealItem(target)))}
+          >
+            파일 위치 열기
+          </button>
+        )}
+        <button className="btn btn-ghost btn-sm" type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}>
+          {open ? "순서 접기" : "직접 하는 순서"}
+        </button>
+      </div>
+      {revealFailed && <p className="help">파일 위치를 열지 못했어요. 위 근거에 적힌 파일을 직접 열어 주세요.</p>}
+      <div id={panelId} hidden={!open}>
+        {open && <StepList finding={finding} />}
+      </div>
     </div>
   );
 }
@@ -82,6 +120,7 @@ export function FindingGroupCard({ findings, headingLevel = 2 }: { findings: Fin
                 {rt && <p className="finding-row-title">{rt}</p>}
                 <ItemChips ids={f.items} />
                 <p className="finding-evidence">{f.evidence}</p>
+                <FindingActions finding={f} />
               </li>
             );
           })}
@@ -124,6 +163,7 @@ export function FindingCard({ finding, headingLevel = 3 }: { finding: Finding; h
         <span className="finding-label">근거</span> {finding.evidence}
       </p>
       <ItemChips ids={finding.items} />
+      <FindingActions finding={finding} />
     </article>
   );
 }
