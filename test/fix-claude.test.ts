@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { claudeEnv, planWithClaude, resolveClaude, runClaudeCli, SecretInTargetError } from "../src/fix/claude";
@@ -18,6 +18,7 @@ const put = (rel: string, body: string) => {
   writeFileSync(a, body);
 };
 const SECRET = "sk-abcdefghijklmnop1234";
+let cfg: string;
 const leftovers = () => (existsSync(tmpDir(home)) ? readdirSync(tmpDir(home)) : []);
 
 beforeEach(() => {
@@ -26,6 +27,9 @@ beforeEach(() => {
   mkdirSync(join(home, ".claude", "memory"), { recursive: true });
   planFile = join(dir, "plan.json");
   process.env.CHECKUP_FAKE_PLAN = planFile;
+  cfg = join(dir, "cfg");
+  mkdirSync(join(cfg, "projects"), { recursive: true });
+  process.env.CLAUDE_CONFIG_DIR = cfg;
   put("memory/MEMORY.md", "# 목차\n- [a](a.md)\n");
   put("memory/a.md", "hello\n");
   put("memory/notes-token.md", "비밀이름\n");
@@ -34,6 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   delete process.env.CHECKUP_FAKE_PLAN;
+  delete process.env.CLAUDE_CONFIG_DIR;
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -56,7 +61,7 @@ describe("planWithClaude", () => {
     expect(p.changes[0].rel).toBe("memory/a.md");
     expect(p.changes[0].diff.some((l) => l.op === "+" && l.text === "world")).toBe(true);
     expect(p.hashes[absOf(home, "memory/a.md")]).toBeTruthy();
-    expect(p.usage).toEqual({ inputTokens: 120, outputTokens: 34, costUsd: 0.0123 });
+    expect(p.usage).toEqual({ inputTokens: 1620, outputTokens: 34, costUsd: 0.0123 });
     expect(p.moves).toEqual([]);
     expect(leftovers()).toEqual([]);
   });
@@ -74,12 +79,15 @@ describe("planWithClaude", () => {
         { rel: "memory/a.md", content: "hello\nworld\n" },
         { rel: "other/new.md", content: "밖\n" },
         { rel: "plugins/x/y.md", content: "플러그인\n" },
-        { rel: "memory/sub/deep.md", content: "새 하위 폴더도 폴더 안이라 허용\n" },
+        { rel: "memory/sub/deep.md", content: "새 하위 폴더는 원래 없던 곳이라 거부\n" },
+        { rel: "projects/x/memory/y.md", content: "다른 메모리 폴더\n" },
         { rel: "memory/MEMORY.md", delete: true },
       ],
     });
     const p = await run();
-    expect(p.changes.map((c) => c.rel).sort()).toEqual(["memory/a.md", "memory/sub/deep.md"]);
+    expect(p.changes.map((c) => c.rel).sort()).toEqual(["memory/a.md"]);
+    expect(p.warnings.some((w) => w.includes("memory/sub/deep.md"))).toBe(true);
+    expect(p.warnings.some((w) => w.includes("projects/x/memory/y.md"))).toBe(true);
     expect(p.warnings.some((w) => w.includes("other/new.md"))).toBe(true);
     expect(p.warnings.some((w) => w.includes("plugins/x/y.md"))).toBe(true);
     expect(p.warnings.some((w) => w.includes("MEMORY.md") && w.includes("지"))).toBe(true);
@@ -117,24 +125,31 @@ describe("planWithClaude", () => {
     const log = join(dir, "argv.json");
     setPlan({ argvLog: log, edits: [] });
     await run();
-    const { argv, cwd } = JSON.parse(readFileSync(log, "utf8"));
+    const { argv, cwd, stdin } = JSON.parse(readFileSync(log, "utf8"));
     expect(argv[0]).toBe("-p");
+    expect(argv.join(" ")).not.toContain("MEMORY.md 를 정리해"); // 요청문은 명령줄에 없고 표준 입력으로 간다
+    expect(stdin).toContain("MEMORY.md 를 정리해 줘");
     expect(argv).toContain("--no-session-persistence");
     expect(argv[argv.indexOf("--disallowedTools") + 1]).toBe("Bash");
     const a = argv.indexOf("--allowedTools");
     expect(argv.slice(a + 1, a + 6)).toEqual(["Read", "Edit", "Write", "Glob", "Grep"]);
     expect(argv).toContain("acceptEdits");
-    expect(argv[argv.indexOf("--settings") + 1]).toBe('{"disableAllHooks":true}'); // 실제 claude 로 받아들여지는 것을 확인했다
+    expect(argv).toContain("--restricted");
+    expect(argv).toContain("--strict-mcp-config");
+    expect(argv).toContain("--settings");
+    expect(argv[argv.indexOf("--tools") + 1]).toBe("Read,Edit,Write,Glob,Grep");
     expect(argv[argv.indexOf("--output-format") + 1]).toBe("json");
     expect(argv[argv.indexOf("--max-turns") + 1]).toBe("30");
-    expect(cwd.toLowerCase().startsWith(tmpDir(home).toLowerCase())).toBe(true);
+    expect(cwd.toLowerCase().startsWith(realpathSync.native(tmpDir(home)).toLowerCase())).toBe(true); // 8.3 짧은 이름이 아닌 실제 경로
   });
 
   test("요청문에 비밀값 모양이 있으면 가려서 보낸다", async () => {
     const log = join(dir, "argv.json");
     setPlan({ argvLog: log, edits: [] });
-    await run({ prompt: `이 키 ${SECRET} 는 쓰지 마` });
-    expect(readFileSync(log, "utf8")).not.toContain(SECRET);
+    await run({ prompt: `이 키 ${SECRET} 는 쓰지 마 & echo hi | more %PATH%\n--dangerously-skip-permissions` });
+    const l = readFileSync(log, "utf8");
+    expect(l).not.toContain(SECRET);
+    expect(JSON.parse(l).argv).not.toContain("--dangerously-skip-permissions");
   });
 
   test("로그인 안 됨(is_error)이면 쉬운 말로 실패하고 임시 폴더를 지운다", async () => {
@@ -157,6 +172,49 @@ describe("planWithClaude", () => {
     await expect(run({ scopeDirs: [join(home, "elsewhere")] })).rejects.toThrow();
     await expect(run({ targets: [join(home, "x.md")] })).rejects.toThrow();
     expect(leftovers()).toEqual([]);
+  });
+
+  test("미리 보기 해시는 복사한 때의 원본 내용 기준이다", async () => {
+    setPlan({ edits: [{ rel: "memory/a.md", content: "hello\nworld\n" }] });
+    const { createHash } = await import("node:crypto");
+    const p = await run();
+    expect(p.hashes[absOf(home, "memory/a.md")]).toBe(createHash("sha256").update("hello\n").digest("hex"));
+    expect(p.hashes[absOf(home, "memory/MEMORY.md")]).toBe(createHash("sha256").update("# 목차\n- [a](a.md)\n").digest("hex"));
+  });
+
+  test("실행 중 원본 허용 폴더가 바뀌면 계획을 만들지 않는다", async () => {
+    setPlan({ touchOriginal: absOf(home, "memory/a.md"), edits: [] });
+    await expect(run()).rejects.toThrow(/바뀌/);
+    expect(leftovers()).toEqual([]);
+  });
+
+  test("Claude 설정 폴더에 남은 빈 임시 폴더는 지우고, 파일이 든 것은 남긴다", async () => {
+    setPlan({ configProjectDir: ["memory"], edits: [] });
+    await run();
+    expect(readdirSync(join(cfg, "projects"))).toEqual([]);
+    mkdirSync(join(cfg, "projects", "keep-me"), { recursive: true });
+    setPlan({ configProjectDir: ["memory"], configProjectFile: "memory/t.jsonl", edits: [] });
+    await run();
+    const left = readdirSync(join(cfg, "projects"));
+    expect(left.length).toBe(2);
+    expect(left).toContain("keep-me");
+  });
+
+  test("타임아웃이면 손자 프로세스까지 죽이고 바로 돌아온다", async () => {
+    const pidFile = join(dir, "gc.pid");
+    setPlan({ grandchildPidFile: pidFile, sleepMs: 30000, edits: [] });
+    const t0 = Date.now();
+    await expect(run({ timeoutMs: 1500 })).rejects.toThrow(/시간/);
+    expect(Date.now() - t0).toBeLessThan(8000);
+    const pid = Number(readFileSync(pidFile, "utf8"));
+    await new Promise((r) => setTimeout(r, 500));
+    let alive = true;
+    try {
+      process.kill(pid, 0);
+    } catch {
+      alive = false;
+    }
+    expect(alive).toBe(false);
   });
 
   test("만든 계획은 applyPlanned 로 적용된다", async () => {
