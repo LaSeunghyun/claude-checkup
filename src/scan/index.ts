@@ -89,7 +89,8 @@ function applyUsage(inv: Inventory, ux: UsageIndex) {
   };
 
   // 먼저 AI가 부른 이름으로 기본 제공 항목을 만들어 둬야, 같은 이름을 직접 부른 기록(U|)도 거기에 붙는다
-  for (const [key] of ux.counters) {
+  for (const [key, acc] of ux.counters) {
+    if (!acc.d30.some((n) => n > 0)) continue; // 30일 안에 쓴 것만. 오래전 기록만 있는 이름은 지금 판단에 쓸모가 없다
     const name = key.slice(2);
     if (key.startsWith("S|") && !skillish(name)) builtinOf("skill", name);
     if (key.startsWith("A|") && !agentOf(name)) builtinOf("agent", name);

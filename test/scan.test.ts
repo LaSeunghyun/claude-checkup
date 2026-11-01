@@ -97,7 +97,7 @@ describe("목록 만들기", () => {
     const b = find("skill:history::not-installed");
     expect(b.usage.count30).toBe(1);
     expect(b.alwaysLoaded).toBeNull();
-    expect(snap.items.some((i) => i.name.includes("gone-plugin") || i.name === "old")).toBe(false);
+    expect(snap.items.some((i) => i.name.includes("gone-plugin") || i.name === "old" || i.name === "old-gone")).toBe(false);
     expect(snap.findings.flatMap((f) => f.items)).not.toContain(b.id);
   });
   test("frontmatter 의 description 이 요약이고 H2 가 개요다", () => {

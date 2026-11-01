@@ -57,6 +57,7 @@ Claude Code에 스킬·에이전트·메모리·훅·플러그인을 몇 달 쌓
 | 훅 | `C/settings.json` 의 `hooks`, 플러그인 `hooks/hooks.json` |
 | 연결된 서비스 | `HOME/.claude.json` 의 `mcpServers`(전역)와 `projects.*.mcpServers`, 플러그인 `.mcp.json`. 이름만 읽고 `env`, `headers`, `args` 값은 읽지 않는다 |
 | 기본 제공 에이전트 | 고정 목록: general-purpose, Explore, Plan, statusline-setup, claude-code-guide |
+| 기록에만 있는 항목 | 최근 30일 대화 기록에 쓰인 작업 설명서·에이전트 이름 중 위 어디에도 파일이 없는 것. 출처 `history`("기록에만 있음"). Claude Code 기본 내장, 지운 항목, 이름이 바뀐 항목을 가르지 않는다. `플러그인:이름` 꼴은 만들지 않는다 |
 | 대화 기록 | `C/projects/**/*.jsonl` (하위 `subagents/` 포함) |
 
 읽지 않는 파일: 이름에 `credential`, `token`, `secret`, `auth`, `.env`, `.pem`, `.key` 가 들어간 파일 전부.
@@ -106,17 +107,19 @@ A4 1쪽 = 1,500 토큰으로 환산한다(추정).
 |---|---|---|
 | memory-index-truncated | MEMORY.md 가 200줄 초과. 201줄 이후는 AI가 읽지 못함 | 높음 |
 | memory-index-near-limit | MEMORY.md 180~200줄 | 낮음 |
-| broken-link | MEMORY.md·메모리 파일의 `[제목](파일.md)` 또는 `[[이름]]` 대상이 없음 | 중간 |
-| orphan-memory | 메모리 파일이 MEMORY.md 에 없고 다른 메모리에서도 연결 안 됨 | 낮음 |
+| broken-link | MEMORY.md·메모리 파일의 `[제목](파일.md)` 대상이 없음. `[[이름]]` 은 아직 없는 메모리를 미리 가리켜도 되는 표시라 세지 않고, 있으면 대소문자·`-`/`_` 차이와 frontmatter `name` 으로 찾아 잇기만 한다 | 중간 |
+| orphan-memory | 메모리 파일이 MEMORY.md 에 링크로도 이름으로도 없고 다른 메모리에서도 연결 안 됨 | 낮음 |
 | duplicate-rule | 정규화한 같은 줄(25자 이상)이 지시문·MEMORY.md 2곳 이상에 있음 | 중간 |
 | duplicate-name | 같은 이름의 스킬·에이전트가 출처 2곳 이상에 켜져 있음 | 중간 |
 | similar-description | 켜진 스킬 두 개의 설명 단어 집합 Jaccard 0.5 이상 | 낮음 |
 | missing-description | 설명이 없는 스킬·에이전트 (AI가 고를 근거가 없음) | 중간 |
-| unused-plugin | 켜진 플러그인의 스킬·에이전트·서비스를 30일 동안 하나도 안 씀 | 중간 |
+| unused-plugin | 켜진 플러그인의 스킬·에이전트·서비스를 30일 동안 하나도 안 썼고 자동 실행 규칙도 안 돌았음 | 중간 |
 | unused-items | 켜진 스킬·에이전트 중 30일 0회. 플러그인 단위로 묶어 1건 | 낮음 |
 | long-skill | SKILL.md 본문 20,000자 초과 (부를 때마다 많이 읽음) | 낮음 |
 | slow-hook | 훅 평균 실행 3초 이상 또는 최대 10초 이상 | 중간 |
-| failing-hook | 훅 종료 코드 0이 아닌 실행이 30일 중 1회 이상 | 높음 |
+| failing-hook | 훅 종료 코드 0이 아닌 실행이 30일 기록에 1회 이상. 3회 이상이면 높음, 그 아래는 중간. Claude Code 는 성공한 실행을 다 기록하지 않아 실패율은 내지 않는다 | 높음·중간 |
+
+진단 결과 화면은 같은 규칙의 진단을 카드 하나로 묶는다. 카드에는 규칙 제목, 걸린 항목 목록(항목별 근거), 왜 중요한가요, 이렇게 고쳐요를 한 번씩 둔다. 항목 모달에서는 그 항목의 진단만 따로 보여 준다.
 
 각 진단은 `title`(무엇이), `why`(왜 중요한지), `fix`(어떻게 고치나), 관련 항목 id, `evidence`(숫자 근거)를 쉬운 말로 가진다.
 문구는 기준이지 정답이 아니다. 단정 대신 "~일 수 있어요"를 쓴다.

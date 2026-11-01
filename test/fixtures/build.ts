@@ -101,7 +101,8 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     tool(ts(1, 2000), "Skill", { skill: "plugin-a:helper" }),
     tool(ts(1, 3000), "Skill", { skill: "shared-name" }), // 개인 -> 플러그인 순서라 개인 쪽
     tool(ts(45), "Skill", { skill: "unused-one" }), // 30일 밖
-    tool(ts(1, 4000), "Skill", { skill: "not-installed" }), // .claude 에 파일이 없음 -> 기본 제공 항목으로 만든다
+    tool(ts(1, 4000), "Skill", { skill: "not-installed" }), // .claude 에 파일이 없음 -> 기록에만 있음 항목으로 만든다
+    tool(ts(45, 4000), "Skill", { skill: "old-gone" }), // 30일 밖에만 있는 이름 -> 만들지 않는다
     tool(ts(1, 4500), "Skill", { skill: "gone-plugin:old" }), // 지금 없는 플러그인 -> 만들지 않는다
     // 에이전트
     tool(ts(1, 5000), "Agent", { subagent_type: "reviewer", prompt: "x" }),
