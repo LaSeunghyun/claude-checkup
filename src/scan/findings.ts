@@ -1,5 +1,7 @@
-// 진단 규칙 (design.md 6절). 문구는 비전문가용 해요체, 단정 대신 "~일 수 있어요".
-import type { Category, Finding, Severity } from "../shared/types";
+// 진단 규칙 (design.md 7절). 문구는 비전문가용 해요체, 단정 대신 "~일 수 있어요".
+import { isAbsolute, relative } from "node:path";
+import type { Category, Finding, FixKind, MdGraph, Severity } from "../shared/types";
+import { secretLineNumbers } from "./fsutil";
 import type { Entry, PluginEntry } from "./inventory";
 import { MEMORY_INDEX_LINES } from "./inventory";
 import { countLines, jaccard, normalizeLine, truncate, wordSet } from "./text";
@@ -8,6 +10,8 @@ export interface DiagnoseCtx {
   entries: Entry[];
   plugins: PluginEntry[];
   broken: Map<string, string[]>;
+  graph: MdGraph;
+  claudeDir: string; // HOME/.claude 절대경로. 고치기가 닿는 범위(8-2절)를 가르는 기준
 }
 
 export const LONG_SKILL_CHARS = 20_000;
@@ -19,17 +23,67 @@ export const MIN_DUP_CHARS = 25;
 export const SIMILAR_JACCARD = 0.5;
 
 const SEV_ORDER: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
+const SECRET_SCAN_KINDS = new Set(["instruction", "memory-index", "memory", "skill", "command", "agent"]); // 읽는 md 파일
 
-// 임시 분류표 (design.md 7절). Task 3 이 규칙 표로 바꾼다. 고치는 방법은 모두 manual
-const CATEGORY_OF: Record<string, Category> = {
-  "memory-index-truncated": "broken",
-  "failing-hook": "broken",
-  "broken-link": "leak",
-  "orphan-memory": "leak",
-  "duplicate-name": "confusion",
-  "similar-description": "confusion",
-  "missing-description": "confusion",
+// 규칙 목록. 규칙을 더하면 아래 RULES 에도 한 줄 더해야 컴파일이 된다 (빠진 규칙이 조용히 기본값을 받지 않게)
+export const RULE_IDS = [
+  "secret-in-file",
+  "memory-index-truncated",
+  "failing-hook",
+  "broken-link",
+  "unreachable-md",
+  "unread-md",
+  "memory-index-near-limit",
+  "unused-plugin",
+  "unused-items",
+  "long-skill",
+  "duplicate-rule",
+  "slow-hook",
+  "duplicate-name",
+  "similar-description",
+  "missing-description",
+] as const;
+export type RuleId = (typeof RULE_IDS)[number];
+
+interface RuleMeta {
+  category: Category; // 7절
+  fixKind: FixKind; // 8-2절, 개인 파일 기준
+  whenPlugin?: FixKind; // 플러그인 출처 항목이 낄 때 (플러그인 파일은 고치지 않고, 플러그인 훅은 플러그인을 끈다)
+  whenOutside?: FixKind; // .claude 밖 파일(프로젝트 CLAUDE.md, AGENTS.md)이 낄 때
+}
+
+const RULES: Record<RuleId, RuleMeta> = {
+  "secret-in-file": { category: "risk", fixKind: "manual" }, // 값을 Claude 에게 보내면 안 된다
+  "memory-index-truncated": { category: "broken", fixKind: "claude" },
+  "failing-hook": { category: "broken", fixKind: "manual", whenPlugin: "mechanical" },
+  "broken-link": { category: "leak", fixKind: "claude" },
+  "unreachable-md": { category: "leak", fixKind: "claude" },
+  "unread-md": { category: "leak", fixKind: "mechanical" },
+  "memory-index-near-limit": { category: "waste", fixKind: "claude" },
+  "unused-plugin": { category: "waste", fixKind: "mechanical" },
+  "unused-items": { category: "waste", fixKind: "mechanical" },
+  "long-skill": { category: "waste", fixKind: "claude", whenPlugin: "manual" },
+  "duplicate-rule": { category: "waste", fixKind: "claude", whenOutside: "manual" },
+  "slow-hook": { category: "waste", fixKind: "manual", whenPlugin: "mechanical" },
+  "duplicate-name": { category: "confusion", fixKind: "manual" }, // 어느 쪽을 남길지는 사용자 판단
+  "similar-description": { category: "confusion", fixKind: "claude", whenPlugin: "manual" },
+  "missing-description": { category: "confusion", fixKind: "claude", whenPlugin: "manual" },
 };
+
+export const categoryOf = (rule: RuleId): Category => RULES[rule].category;
+
+const insideClaude = (e: Entry, claudeDir: string): boolean => {
+  if (!e.abs) return false;
+  const rel = relative(claudeDir, e.abs);
+  return !!rel && !rel.startsWith("..") && !isAbsolute(rel);
+};
+
+function fixKindOf(rule: RuleId, es: Entry[], claudeDir: string): FixKind {
+  const m = RULES[rule];
+  if (m.whenPlugin && es.some((e) => e.item.source.type === "plugin")) return m.whenPlugin;
+  if (m.whenOutside && es.some((e) => !insideClaude(e, claudeDir))) return m.whenOutside;
+  return m.fixKind;
+}
 
 export const a4 = (tokens: number): string => (tokens / 1500).toFixed(1);
 
@@ -45,18 +99,31 @@ const where = (e: Entry): string => {
 };
 const kindWord = (k: string): string => (k === "agent" ? "에이전트" : k === "command" ? "명령" : "작업 설명서");
 
-export const categoryOf = (rule: string): Category => CATEGORY_OF[rule] ?? "waste";
-
 export function diagnose(ctx: DiagnoseCtx): Finding[] {
   const out: Finding[] = [];
   const counters = new Map<string, number>();
-  const push = (rule: string, severity: Severity, f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "gain" | "severity" | "steps" | "prompt" | "command">) => {
-    const n = (counters.get(rule) ?? 0) + 1;
-    counters.set(rule, n);
-    out.push({ id: `${rule}:${n}`, rule, category: categoryOf(rule), fixKind: "manual", severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
-  };
   const { entries } = ctx;
   const byId = new Map(entries.map((e) => [e.item.id, e] as const));
+  const push = (rule: RuleId, severity: Severity, f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "gain" | "severity" | "steps" | "prompt" | "command">) => {
+    const n = (counters.get(rule) ?? 0) + 1;
+    counters.set(rule, n);
+    const es = f.items.map((id) => byId.get(id)).filter((e): e is Entry => !!e);
+    out.push({ id: `${rule}:${n}`, rule, category: categoryOf(rule), fixKind: fixKindOf(rule, es, ctx.claudeDir), severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
+  };
+
+  // secret-in-file: 읽히는 글 파일 원문에 토큰·키 모양 값이 있으면 파일마다 1건. 줄 번호만 남기고 값은 저장하지 않는다
+  for (const e of entries) {
+    if (!SECRET_SCAN_KINDS.has(e.item.kind) || !e.item.enabled || !e.text) continue; // 이름 때문에 열지 않은 파일은 text 가 없다
+    const lines = secretLineNumbers(e.text);
+    if (!lines.length) continue;
+    push("secret-in-file", "high", {
+      title: `${e.item.path ?? e.item.name} 에 토큰이나 키로 보이는 값이 들어 있어요`,
+      why: "이 파일은 Claude가 읽을 때마다 대화에 실려요. 그 값이 대화 기록이나 백업에 남거나 다른 곳으로 새어 나갈 수 있어요.",
+      fix: "그 값을 파일에서 지우고, 이미 쓴 적 있는 키라면 새로 발급받아 바꿔 주세요.",
+      items: [e.item.id],
+      evidence: lines.length === 1 ? `${lines[0]}번째 줄` : `${lines[0]}번째 줄 외 ${lines.length - 1}줄`,
+    });
+  }
 
   // memory-index-truncated / near-limit
   for (const e of entries) {
@@ -94,22 +161,34 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     });
   }
 
-  // orphan-memory (메모리 폴더마다 1건)
+  // unreachable-md / unread-md (연결 그래프 6절, 메모리 폴더마다 1건)
+  const depthOf = new Map(ctx.graph.nodes.map((n) => [n.id, n.depth] as const));
   const dirs = new Map<string, Entry[]>();
   for (const e of entries) if (e.memDir) (dirs.get(e.memDir) ?? dirs.set(e.memDir, []).get(e.memDir)!).push(e);
+  const nameList = (xs: Entry[], n: number) => `${truncate(xs.slice(0, n).map((e) => e.item.name).join(", "), 100)}${xs.length > n ? " 외" : ""}`;
   for (const list of dirs.values()) {
-    if (!list.some((e) => e.item.kind === "memory-index")) continue;
-    const orphans = list.filter(
-      (e) => e.item.kind === "memory" && !e.item.links.in.some((id) => byId.get(id)?.memDir),
-    );
-    if (!orphans.length) continue;
-    const first = orphans[0];
-    push("orphan-memory", "low", {
-      title: `${where(first)}MEMORY.md 에 적히지 않은 메모리 파일이 ${orphans.length}개 있어요`,
-      why: "AI는 MEMORY.md 에 적힌 목록을 보고 메모리를 찾아가요. 목록에 없고 다른 메모리에서도 안 이어진 파일은 거의 읽히지 않을 수 있어요.",
-      fix: "MEMORY.md 에 한 줄씩 추가하거나, 필요 없는 파일은 지워 주세요.",
-      items: orphans.map((e) => e.item.id),
-      evidence: `${list.filter((e) => e.item.kind === "memory").length}개 중 ${orphans.length}개: ${truncate(orphans.slice(0, 3).map((e) => e.item.name).join(", "), 100)}${orphans.length > 3 ? " 외" : ""}`,
+    const files = list.filter((e) => e.item.kind === "memory");
+    const lost = files.filter((e) => depthOf.get(e.item.id) === null);
+    if (!lost.length) continue;
+    const noIndex = !list.some((e) => e.item.kind === "memory-index");
+    push("unreachable-md", "medium", {
+      title: `${where(lost[0])}메모리 폴더에 AI가 찾아갈 길이 없는 파일이 ${lost.length}개 있어요`,
+      why: "AI는 매번 실리는 CLAUDE.md 와 MEMORY.md 에서 시작해 링크를 따라 메모리를 찾아가요. 어디서도 이어지지 않은 파일은 AI가 있는 줄 몰라서 읽지 않을 수 있어요.",
+      fix: "MEMORY.md 에 한 줄씩 적어서 이어 주세요. 필요 없는 파일은 보관하거나 지워 주세요.",
+      items: lost.map((e) => e.item.id),
+      evidence: `${noIndex ? "목차 파일이 없는 폴더, " : ""}메모리 파일 ${files.length}개 중 ${lost.length}개: ${nameList(lost, 3)}`,
+    });
+  }
+  for (const list of dirs.values()) {
+    const linked = list.filter((e) => e.item.kind === "memory" && typeof depthOf.get(e.item.id) === "number");
+    const unread = linked.filter((e) => e.item.usage.count30 === 0);
+    if (!unread.length) continue;
+    push("unread-md", "low", {
+      title: `${where(unread[0])}메모리 폴더에 한 달 동안 한 번도 안 읽힌 파일이 ${unread.length}개 있어요`,
+      why: "이어져 있어도 한 달 동안 AI가 한 번도 열어 보지 않은 파일이에요. 필요 없는 내용이라면 목차의 그 줄만 대화마다 컨텍스트를 차지하고 있을 수 있어요.",
+      fix: "더 이상 안 쓰는 파일은 목차에서 줄을 빼고 보관 폴더로 옮겨 주세요. 다시 필요하면 되돌릴 수 있어요.",
+      items: unread.map((e) => e.item.id),
+      evidence: `이어진 메모리 파일 ${linked.length}개 중 ${unread.length}개가 30일 0회: ${nameList(unread, 3)}`,
     });
   }
 
@@ -286,6 +365,8 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     }
   }
 
-  out.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
+  // 위험은 늘 맨 위, 그 아래는 심각도 순 (같으면 만든 순서 그대로)
+  const risk = (f: Finding) => (f.category === "risk" ? 0 : 1);
+  out.sort((a, b) => risk(a) - risk(b) || SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
   return out;
 }

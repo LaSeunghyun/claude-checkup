@@ -3,6 +3,7 @@
 import type { Finding } from "../shared/types";
 import type { DiagnoseCtx } from "./findings";
 import { a4 } from "./findings";
+import { secretLineNumbers } from "./fsutil";
 import type { Entry } from "./inventory";
 import { MEMORY_INDEX_LINES } from "./inventory";
 
@@ -63,17 +64,57 @@ export function todoFor(f: Finding, ctx: DiagnoseCtx, byId: Map<string, Entry>):
       };
     }
 
-    case "orphan-memory": {
+    case "unreachable-md": {
+      const dir = dirOf(path);
+      const names = es.map((x) => x.item.name);
+      const noIndex = !ctx.entries.some((x) => x.item.kind === "memory-index" && x.memDir === e?.memDir);
+      const line = "`- [제목](파일이름.md) - 한 줄 설명`";
+      return {
+        steps: noIndex
+          ? [
+              `${dir} 폴더에는 MEMORY.md 가 없어요. 같은 폴더에 새로 만들어요.`,
+              `이어지지 않은 파일 ${names.length}개를 확인해요: ${list(names)}`,
+              `계속 쓸 파일은 MEMORY.md 에 ${line} 형식으로 한 줄씩 적어요.`,
+              "더 필요 없는 파일은 지우지 말고 다른 폴더로 옮겨 둬요.",
+            ]
+          : [
+              `${dir}/MEMORY.md 를 열어요.`,
+              `목차에 이어지지 않은 파일 ${names.length}개를 확인해요: ${list(names)}`,
+              `계속 쓸 파일은 MEMORY.md 에 ${line} 형식으로 한 줄씩 추가해요.`,
+              `MEMORY.md 는 ${MEMORY_INDEX_LINES}줄까지만 읽혀요. 180줄을 넘길 것 같으면 주제별 하위 목차 파일을 새로 만들고, MEMORY.md 에는 그 파일로 가는 한 줄만 넣어요.`,
+              "더 필요 없는 파일은 지우지 말고 다른 폴더로 옮겨 둬요.",
+            ],
+        prompt: `${dir} 메모리 폴더에서 ${noIndex ? "MEMORY.md 가 없어서" : "MEMORY.md 에"} 이어지지 않은 파일 ${names.length}개(${list(names, 30)})를 하나씩 읽어 줘. 1) 오래됐거나 다른 파일과 겹치는 것은 '보관 후보'로 목록에만 적고 고치지 마. 2) 계속 쓸 만한 것은 ${noIndex ? "같은 폴더에 MEMORY.md 를 새로 만들어" : `MEMORY.md 가 180줄을 넘지 않는 범위에서`} 한 줄씩 적어 줘. 3) 줄이 모자라면 주제별 하위 목차 파일 하나를 같은 폴더에 새로 만들고 MEMORY.md 에는 그 파일로 가는 한 줄만 넣어 줘. 파일은 지우지 마.`,
+      };
+    }
+
+    case "unread-md": {
       const dir = dirOf(path);
       const names = es.map((x) => x.item.name);
       return {
         steps: [
-          `${dir}/MEMORY.md 를 열어요.`,
-          `목차에 없는 파일 ${names.length}개를 확인해요: ${list(names)}`,
-          "계속 쓸 파일은 MEMORY.md 에 `- [제목](파일이름.md) - 한 줄 설명` 형식으로 한 줄씩 추가해요.",
-          "더 필요 없는 파일은 지우거나 다른 폴더로 옮겨요.",
+          `안 읽힌 파일 ${names.length}개를 확인해요: ${list(names)}`,
+          "파일을 하나씩 열어 아직 쓸모 있는 내용인지 훑어봐요.",
+          "필요 없는 파일은 지우지 말고 ~/.claude-checkup/off/ 아래로 옮겨요. Claude Code 가 읽지 않는 곳이라 목록에서 빠져요.",
+          `${dir}/MEMORY.md 에 그 파일을 가리키는 줄이 있으면 함께 지워요.`,
         ],
-        prompt: `${dir} 메모리 폴더에서 MEMORY.md 목차에 없는 파일 ${names.length}개(${list(names, 30)})를 하나씩 읽어 봐 줘. 계속 쓸 만한 것은 목차에 한 줄씩 추가하고, 오래돼서 필요 없어 보이는 것은 목록으로만 알려 줘. 지우는 건 내가 확인한 다음에 해 줘.`,
+        prompt: `${dir} 메모리 폴더의 파일 ${names.length}개(${list(names, 30)})는 목차나 다른 메모리를 따라 닿을 수 있지만 한 달 동안 한 번도 안 읽혔어요. 파일마다 아직 쓸모 있는지 한 줄로 판단해 알려 줘. 지우지 말고, 필요 없어 보이는 것만 ~/.claude-checkup/off/ 아래로 옮길 후보 목록으로 보여 줘. MEMORY.md 에서 지울 줄도 함께 알려 줘.`,
+      };
+    }
+
+    case "secret-in-file": {
+      // 값은 어디에도 싣지 않는다. 줄 번호만 다시 센다
+      const lines = secretLineNumbers(e?.text ?? "");
+      const at = `${lines.slice(0, 10).join(", ")}번째 줄${lines.length > 10 ? ` 외 ${lines.length - 10}줄` : ""}`;
+      return {
+        steps: [
+          `${path} 파일을 열어요.`,
+          `토큰이나 키로 보이는 값이 있는 곳: ${at}`,
+          "그 값을 지워요. 꼭 필요한 값이면 파일 밖의 안전한 곳(환경 변수나 비밀번호 관리자)으로 옮겨요.",
+          "이미 대화나 다른 곳에 올렸을 수 있으니, 그 키는 발급처에서 새로 만들고 예전 키는 폐기해요.",
+          "이 앱에서 다시 점검을 눌러 사라졌는지 확인해요.",
+        ],
+        prompt: `${path} 의 ${at}에 토큰이나 키로 보이는 값이 있어요. 값은 이 요청에 적지 않았어요. 그 파일을 읽지 말고, 값을 안전하게 치우는 순서(지우기, 키 새로 발급받기, 이미 새어 나갔는지 확인하기)만 짧게 알려 줘.`,
       };
     }
 

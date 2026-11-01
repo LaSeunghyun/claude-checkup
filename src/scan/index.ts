@@ -1,7 +1,8 @@
 // 스캐너 진입점: scan(home, opts) => Snapshot
 import { join } from "node:path";
-import type { Category, ContextPart, Group, HistorySummary, Item, ItemKind, Leaks, Progress, Snapshot, Source } from "../shared/types";
-import { diagnose } from "./findings";
+import { CATEGORIES, type Category, type ContextPart, type Group, type HistorySummary, type Item, type ItemKind, type Progress, type Snapshot, type Source } from "../shared/types";
+import { diagnose, type DiagnoseCtx } from "./findings";
+import { buildGraph, leaksOf } from "./graph";
 import { todoFor } from "./todo";
 import { claudeRelKey, redactSecrets, slash } from "./fsutil";
 import { buildInventory, type Entry, type Inventory } from "./inventory";
@@ -199,10 +200,6 @@ function buildGroups(items: Item[]): Group[] {
   );
 }
 
-const zeroLeaks = (): Leaks => ({ unreachable: 0, brokenLinks: 0, unread: 0, unusedTokens: 0 });
-
-const CATEGORIES: Category[] = ["risk", "broken", "leak", "waste", "confusion"];
-
 // 전후 비교와 기록에 쓰는 요약. Task 4 가 이 함수를 옮긴다
 export function summaryOf(s: Pick<Snapshot, "generatedAt" | "context" | "findings" | "leaks">): HistorySummary {
   const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
@@ -244,8 +241,9 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
   emit({ phase: "diagnose", filesDone: tr.files.length, filesTotal: tr.files.length, message: "진단하는 중이에요" });
   const ux = aggregate(tr.files, days);
   applyUsage(inv, ux);
-  const { broken } = buildLinks(inv.entries, inv.plugins);
-  const dctx = { entries: inv.entries, plugins: inv.plugins, broken };
+  const { broken, edges } = buildLinks(inv.entries, inv.plugins);
+  const graph = buildGraph(inv.entries, edges);
+  const dctx: DiagnoseCtx = { entries: inv.entries, plugins: inv.plugins, broken, graph, claudeDir };
   const findings = diagnose(dctx);
   const entryById = new Map(inv.entries.map((e) => [e.item.id, e] as const));
   for (const f of findings) {
@@ -272,7 +270,8 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
 
   const generatedAt = new Date().toISOString();
   const context = buildContext(inv.entries, ux);
-  const leaks = zeroLeaks(); // Task 3 이 채운다
+  const brokenLinks = [...broken.values()].reduce((n, bad) => n + bad.length, 0);
+  const leaks = leaksOf(graph, inv.entries.map((e) => e.item), context.unusedTokens, brokenLinks);
   const snap: Snapshot = {
     version: 1,
     generatedAt,
@@ -290,7 +289,7 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
     items,
     groups: buildGroups(items),
     findings,
-    graph: { entries: [], nodes: [], edges: [] }, // Task 3 이 채운다
+    graph,
     leaks,
     summary: summaryOf({ generatedAt, context, findings, leaks }),
     warnings,

@@ -60,8 +60,9 @@ export interface Item {
 
 export type Severity = "high" | "medium" | "low";
 
-// 위험, 고장, 연결 누수, 낭비, 헷갈림 (design.md 7절)
-export type Category = "risk" | "broken" | "leak" | "waste" | "confusion";
+// 위험, 고장, 연결 누수, 낭비, 헷갈림 (design.md 7절). 분류 목록은 이 배열 한 곳에서만 적는다
+export const CATEGORIES = ["risk", "broken", "leak", "waste", "confusion"] as const;
+export type Category = (typeof CATEGORIES)[number];
 // mechanical = 앱이 바로 함, claude = `claude -p` 로 함, manual = 사용자가 함
 export type FixKind = "mechanical" | "claude" | "manual";
 

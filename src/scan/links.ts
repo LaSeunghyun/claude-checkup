@@ -1,5 +1,6 @@
-// 항목 사이 연결: 플러그인 구성, 메모리 링크, 본문 속 이름 언급.
-import { basename, resolve } from "node:path";
+// 항목 사이 연결: 플러그인 구성, 메모리 링크, 본문 속 이름 언급. md 파일 사이 길(edges)도 함께 만든다.
+import { basename, dirname, resolve } from "node:path";
+import type { MdEdge } from "../shared/types";
 import { exists } from "./fsutil";
 import type { Entry, PluginEntry } from "./inventory";
 import { memoryKey, memoryLinks, stripCode } from "./text";
@@ -12,6 +13,7 @@ function link(from: Entry, to: Entry) {
 
 const TEXT_KINDS = new Set(["instruction", "memory-index", "memory", "skill", "command", "agent"]);
 const TARGET_KINDS = new Set(["skill", "command", "agent"]);
+const MD_KINDS = new Set(["instruction", "memory-index", "memory"]); // 연결 그래프의 노드
 
 const rank = (e: Entry): number => {
   const s = e.item.source.type;
@@ -20,10 +22,30 @@ const rank = (e: Entry): number => {
 
 export interface LinkResult {
   broken: Map<string, string[]>; // 항목 id -> 대상이 없는 링크
+  edges: MdEdge[]; // md 파일 사이 길. 같은 쌍이 여러 번 나올 수 있어서 buildGraph 가 하나로 합친다
 }
+
+// 본문 속 md 파일 이름 (코드 표기 안의 것도 센다). 홈(~)·절대경로·주소 속 이름은 제외한다
+const MD_NAME = /(?<![\w./\\~:@-])((?:\.{1,2}\/|[\w.-]+\/)*[\w.-]+\.md)(?![\w-])/gi;
 
 export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult {
   const broken = new Map<string, string[]>();
+  const edges: MdEdge[] = [];
+  // MEMORY.md 가 가리키는 길은 어떻게 찾았든(링크, 이름 적기, 언급) 목차 길이다
+  const edge = (from: Entry, to: Entry, kind: MdEdge["kind"]) => {
+    if (from === to) return;
+    edges.push({ from: from.item.id, to: to.item.id, kind: from.item.kind === "memory-index" && kind !== "import" ? "index" : kind });
+  };
+
+  // 지시문 @import: 인벤토리가 이미 이어 둔 지시문끼리의 연결이다
+  const byId = new Map(entries.map((e) => [e.item.id, e] as const));
+  for (const e of entries) {
+    if (e.item.kind !== "instruction") continue;
+    for (const id of e.item.links.out) {
+      const t = byId.get(id);
+      if (t?.item.kind === "instruction") edge(e, t, "import");
+    }
+  }
 
   // 플러그인 <-> 구성
   const byPlugin = new Map<string, Entry>();
@@ -57,7 +79,10 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
     const dir = resolve(e.memDir).toLowerCase();
     for (const w of new Set(wiki)) {
       const target = memByKey.get(`${dir}|${memoryKey(w)}`);
-      if (target) link(e, target);
+      if (target) {
+        link(e, target);
+        edge(e, target, "link");
+      }
     }
     // MEMORY.md 가 링크 없이 파일 이름만 적어 둔 경우도 목차에 있는 것으로 본다
     if (e.item.kind === "memory-index") {
@@ -65,7 +90,10 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
       for (const x of entries) {
         if (x.item.kind !== "memory" || !x.abs || !x.memDir || resolve(x.memDir).toLowerCase() !== dir) continue;
         const stem = basename(x.abs).replace(/\.md$/i, "").toLowerCase();
-        if (new RegExp(`(?<![\\w-])${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(plain)) link(e, x);
+        if (new RegExp(`(?<![\\w-])${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(plain)) {
+          link(e, x);
+          edge(e, x, "index");
+        }
       }
     }
     const bad: string[] = [];
@@ -82,9 +110,28 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
         }
       }
       if (!ok) bad.push(t);
-      else if (target) link(e, target);
+      else if (target) {
+        link(e, target);
+        edge(e, target, "link");
+      }
     }
     if (bad.length) broken.set(e.item.id, bad);
+  }
+
+  // 본문에 다른 md 파일 이름이 나옴: 이 파일 기준으로 풀리는 경로(같은 폴더 이름 포함)가 노드일 때
+  const nodeByPath = new Map<string, Entry>();
+  for (const e of entries) if (MD_KINDS.has(e.item.kind) && e.abs) nodeByPath.set(resolve(e.abs).toLowerCase(), e);
+  for (const e of entries) {
+    if (!e.abs || !e.text || !MD_KINDS.has(e.item.kind)) continue;
+    const dir = dirname(e.abs);
+    const seen = new Set<Entry>();
+    for (const m of e.text.matchAll(MD_NAME)) {
+      const t = nodeByPath.get(resolve(dir, m[1]).toLowerCase());
+      if (t && t !== e && !seen.has(t)) {
+        seen.add(t);
+        edge(e, t, "mention");
+      }
+    }
   }
 
   // 본문 속 이름 언급 (작업 설명서·명령·에이전트)
@@ -115,7 +162,7 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
       }
     }
   }
-  return { broken };
+  return { broken, edges };
 }
 
 // 코드 블록은 지우되, 한 줄짜리 `이름` 표기는 남긴다

@@ -17,6 +17,16 @@ export function redactSecrets(s: string): string {
   return s.replace(SECRET_VALUE_RE, "***");
 }
 
+// 비밀값 모양이 든 줄 번호(1부터). 값은 돌려주지도 저장하지도 않는다 (secret-in-file 진단용)
+const SECRET_LINE_RE = new RegExp(SECRET_VALUE_RE.source); // g 없이: test 가 줄마다 처음부터 찾는다
+
+export function secretLineNumbers(text: string): number[] {
+  const out: number[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) if (SECRET_LINE_RE.test(lines[i])) out.push(i + 1);
+  return out;
+}
+
 export function readText(p: string, max = 2_000_000): string | null {
   if (isSecretName(p)) return null;
   try {

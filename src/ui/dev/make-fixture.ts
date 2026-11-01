@@ -1,7 +1,8 @@
 // 개발용 가짜 점검 결과를 만든다: bun run src/ui/dev/make-fixture.ts
 // 실제 ~/.claude 는 읽지 않는다. 같은 입력이면 항상 같은 결과가 나오게 난수는 고정 씨앗을 쓴다.
 import type { Finding, Group, Item, ItemKind, Snapshot, Source } from "../../shared/types";
-import { categoryOf } from "../../scan/findings";
+import { categoryOf, type RuleId } from "../../scan/findings";
+import { zeroLeaks } from "../../scan/graph";
 import { summaryOf } from "../../scan";
 
 // ---- 고정 난수 ----
@@ -398,7 +399,7 @@ link(idOf("instruction", USER, "CLAUDE.md"), idOf("agent", USER, "code-reviewer"
 link(idOf("instruction", USER, "CLAUDE.md"), idOf("memory", project("lash"), "feedback_preferences"));
 const MI = idOf("memory-index", project("lash"), "MEMORY.md");
 for (const [name] of memRows) {
-  if (name === "reference_token_rotation" || name === "project_krxdata_validation_method") continue; // 목차에 없는 파일 (orphan 진단용)
+  if (name === "reference_token_rotation" || name === "project_krxdata_validation_method") continue; // 목차에 없는 파일 (unreachable-md 진단용)
   link(MI, idOf("memory", project("lash"), name));
 }
 link(idOf("memory", project("lash"), "feedback_rework_causes"), idOf("memory", project("lash"), "feedback_explain_before_agree"));
@@ -407,9 +408,9 @@ for (const n of ["feedback_component_reuse", "project_admin_list_fit", "referenc
 
 // ================= 진단 =================
 const findings: Finding[] = [];
-const F = (f: Omit<Finding, "id" | "category" | "fixKind" | "steps" | "prompt"> & Partial<Pick<Finding, "category" | "fixKind" | "steps" | "prompt">> & { key: string }) => {
+const F = (f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "steps" | "prompt"> & { rule: RuleId } & Partial<Pick<Finding, "category" | "fixKind" | "steps" | "prompt">> & { key: string }) => {
   const { key, ...rest } = f;
-  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다. 분류는 스캐너 임시 표, 고치는 방법은 manual (Task 3 이 바꾼다)
+  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다. 분류는 스캐너 규칙 표, 고치는 방법은 manual 로 둔다 (화면 개발용)
   findings.push({ id: `f-${key}`, category: categoryOf(rest.rule), fixKind: "manual", steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
 };
 const fid = (kind: ItemKind, s: Source, name: string) => idOf(kind, s, name);
@@ -520,8 +521,8 @@ F({
   items: [MI2], evidence: "지금 186줄이에요 (한도 200줄).",
 });
 F({
-  key: "orphan", rule: "orphan-memory", severity: "low",
-  title: "목차에 없는 메모리 파일 2개",
+  key: "orphan", rule: "unreachable-md", severity: "medium",
+  title: "AI가 찾아갈 길이 없는 메모리 파일 2개",
   why: "목차에도 없고 다른 메모리에서도 연결되지 않으면 AI가 이 파일이 있는 줄 모를 수 있어요.",
   fix: "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요.",
   items: [fid("memory", project("lash"), "reference_token_rotation"), fid("memory", project("lash"), "project_krxdata_validation_method")],
@@ -578,7 +579,7 @@ const parts = [
   part("hooks", "자동 실행 규칙이 넣는 글", ["hook"]),
 ];
 
-const zeroLeaks = { unreachable: 0, brokenLinks: 0, unread: 0, unusedTokens: 0 };
+const leaks = zeroLeaks(); // 연결 지도 화면 작업(Task 9)에서 값을 채운다
 const mcpCalls = sum(items.filter((i) => i.kind === "mcp"), (i) => i.usage.count30);
 const context: Snapshot["context"] = {
   budgetTokens: 200000,
@@ -604,8 +605,8 @@ const snapshot: Snapshot = {
   groups,
   findings,
   graph: { entries: [], nodes: [], edges: [] }, // Task 3 이후 채운다
-  leaks: zeroLeaks,
-  summary: summaryOf({ generatedAt: NOW.toISOString(), context, findings, leaks: zeroLeaks }),
+  leaks,
+  summary: summaryOf({ generatedAt: NOW.toISOString(), context, findings, leaks }),
   warnings: ["C:/lash/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."],
 };
 

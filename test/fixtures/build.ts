@@ -35,6 +35,18 @@ export function buildMiniHome(dest: string, commands: string[], transcripts: Rec
   return home;
 }
 
+// 경로 -> 내용 표대로 파일을 쓴 작은 홈 (경로는 홈 기준, / 로 쓴다). 그래프·진단 한 가지만 볼 때 쓴다
+export function buildHomeFrom(dest: string, files: Record<string, string>): string {
+  const home = resolve(dest);
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = join(home, ...rel.split("/"));
+    mkdirSync(join(abs, ".."), { recursive: true });
+    writeFileSync(abs, content);
+  }
+  return home;
+}
+
 export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture {
   const home = resolve(dest);
   mkdirSync(home, { recursive: true });
@@ -130,6 +142,9 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     // 파일 읽힘: 짧은 이름(8.3)과 긴 이름 모두 같은 파일
     tool(ts(0, 7000), "Read", { file_path: "C:\\Users\\WISEBI~1\\.claude\\projects\\C--fx-alpha\\memory\\linked.md" }),
     tool(ts(0, 8000), "Read", { file_path: "C:\\Users\\wisebirds\\.claude\\projects\\C--fx-alpha\\memory\\linked.md" }),
+    tool(ts(0, 8500), "Read", { file_path: join(proj("C--fx-gamma"), "gamma-one.md") }), // 대조군은 읽힌 메모리라 안 읽힘 진단에 안 걸린다
+    tool(ts(0, 8600), "Read", { file_path: join(proj("C--fx-gamma"), "gamma-two.md") }),
+    tool(ts(0, 8700), "Read", { file_path: join(proj(mangle(projA)), "note.md") }),
     tool(ts(0, 9000), "Read", { file_path: "C:/other/file.md" }), // 대상 아님
     tool(ts(0, 10000), "Bash", { command: "ls" }),
     tool(ts(0, 11000), "Edit", { file_path: "x" }),
