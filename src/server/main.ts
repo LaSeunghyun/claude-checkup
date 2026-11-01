@@ -6,6 +6,7 @@ import { dirname, resolve } from "node:path";
 import index from "../ui/index.html";
 import { expandHome, isSecretName, readText, redactSecrets } from "../scan/fsutil";
 import { scan } from "../scan";
+import { appendHistory, previousOf } from "../scan/history";
 import type { Item, Progress, Settings, Snapshot } from "../shared/types";
 import { buildEvent, loadSettings, sendTelemetry, setTelemetry } from "./telemetry";
 
@@ -123,6 +124,14 @@ export function startServer(opts: ServerOpts): Running {
     running = (async () => {
       try {
         const snap = await scan(home, { onProgress: (p) => (progress = p) });
+        // 기록은 실패해도 점검 결과를 막지 않는다
+        try {
+          const prev = previousOf(home, snap.summary);
+          if (prev) snap.previous = prev;
+          appendHistory(home, snap.summary);
+        } catch {
+          /* 기록을 못 남겨도 화면은 그대로 */
+        }
         snapshot = snap;
         byId = new Map(snap.items.map((i) => [i.id, i] as const));
         scanSeq++;
