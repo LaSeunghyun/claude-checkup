@@ -1,10 +1,10 @@
 // 적용(백업 -> 반영)과 되돌리기. 해시로 "그사이 바뀌었는지"를 본다.
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve, sep } from "node:path";
 import type { Overlay } from "../scan/fsutil";
 import type { FileChange } from "../shared/types";
-import { absOf, backupsDir, offDir, relOf } from "./paths";
+import { absOf, backupsDir, claudeRoot, offDir, relOf, tmpDir } from "./paths";
 
 export interface Planned {
   overlay: Overlay;
@@ -23,6 +23,7 @@ export interface Manifest {
   moves: { fromRel: string; toRel: string }[]; // toRel 은 HOME/.claude-checkup/off 기준
   pluginKeys: string[];
   cliKeys?: string[]; // claude plugin disable 로 끈 키
+  status?: "applying" | "applied" | "failed";
 }
 
 export class ChangedSinceError extends Error {
@@ -72,16 +73,51 @@ function move(from: string, to: string) {
   try {
     renameSync(from, to);
   } catch {
-    cpSync(from, to, { recursive: true });
+    try {
+      cpSync(from, to, { recursive: true });
+    } catch (e) {
+      rmSync(to, { recursive: true, force: true }); // 반쯤 복사된 것은 지운다. 원본은 그대로다
+      throw e;
+    }
     rmSync(from, { recursive: true, force: true });
   }
 }
 
-function writeAtomic(abs: string, content: string) {
+// 임시 파일은 HOME/.claude-checkup/tmp 에 만들고 대상 위로 옮긴다. 다른 볼륨이라 못 옮기면 바로 쓴다(백업은 이미 있다)
+function writeAtomic(home: string, abs: string, content: string) {
   mkdirSync(dirname(abs), { recursive: true });
-  const t = abs + ".checkup-tmp";
+  mkdirSync(tmpDir(home), { recursive: true });
+  const t = join(tmpDir(home), `w-${process.pid}-${Date.now()}`);
   writeFileSync(t, content);
-  renameSync(t, abs);
+  try {
+    renameSync(t, abs);
+  } catch (e: any) {
+    rmSync(t, { force: true });
+    if (e?.code !== "EXDEV") throw e;
+    writeFileSync(abs, content);
+  }
+}
+
+const LINK_MSG = "링크로 연결된 곳이라 고치지 않아요: ";
+const under = (p: string, root: string) => {
+  const n = process.platform === "win32" ? (x: string) => x.toLowerCase() : (x: string) => x;
+  return n(p).startsWith(n(root) + sep);
+};
+
+// 대상이 링크이거나, 부모 폴더가 링크를 타고 .claude 밖이나 plugins 로 나가면 거부한다
+function assertNotLinked(home: string, abs: string) {
+  try {
+    if (lstatSync(abs).isSymbolicLink()) throw new Error(LINK_MSG + abs);
+  } catch (e: any) {
+    if (e?.code !== "ENOENT" && e?.code !== "ENOTDIR") throw e;
+  }
+  let parent = dirname(resolve(abs));
+  while (!existsSync(parent) && dirname(parent) !== parent) parent = dirname(parent);
+  const root = realpathSync(claudeRoot(home));
+  const real = realpathSync(parent);
+  const ok = real === root || under(real, root);
+  const plug = under(real, join(root, "plugins")) || real.toLowerCase() === join(root, "plugins").toLowerCase();
+  if (!ok || plug) throw new Error(LINK_MSG + abs);
 }
 
 const backupFile = (home: string, id: string, rel: string) => join(backupsDir(home), id, "files", ...rel.split("/"));
@@ -95,6 +131,8 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
   // 쓸 수 있는 곳인지, 미리 보기 뒤 바뀌지 않았는지 먼저 본다
   for (const w of p.writes) if (relOf(home, w.abs) === null) throw new Error("고칠 수 없는 곳이에요: " + w.abs);
   for (const mv of p.moves) if (relOf(home, mv.from) === null) throw new Error("옮길 수 없는 곳이에요: " + mv.from);
+  for (const w of p.writes) assertNotLinked(home, w.abs);
+  for (const mv of p.moves) assertNotLinked(home, mv.from);
   for (const [abs, h] of Object.entries(p.hashes)) if (hashPath(abs) !== h) throw new ChangedSinceError();
   for (const mv of p.moves) if (existsSync(mv.to)) throw new Error("보관 폴더에 같은 이름이 이미 있어요: " + mv.to);
 
@@ -102,7 +140,8 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
   const dir = join(backupsDir(home), id);
   mkdirSync(dir, { recursive: true });
   const files: Manifest["files"] = [];
-  const m: Manifest = { id, at: new Date().toISOString(), findingId, files, moves: [], pluginKeys: [...p.pluginKeys] };
+  const moves: Manifest["moves"] = p.moves.map((mv) => ({ fromRel: relOf(home, mv.from)!, toRel: mv.to.slice(offDir(home).length + 1).split("\\").join("/") }));
+  const m: Manifest = { id, at: new Date().toISOString(), findingId, files, moves, pluginKeys: [...p.pluginKeys], status: "applying" };
   for (const w of p.writes) {
     const rel = relOf(home, w.abs)!;
     const existed = existsSync(w.abs);
@@ -134,18 +173,20 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
     if (!allByCli) {
       for (const w of p.writes) {
         if (w.content === null) rmSync(w.abs, { force: true });
-        else writeAtomic(w.abs, w.content);
+        else writeAtomic(home, w.abs, w.content);
       }
     }
     for (const mv of p.moves) {
       move(mv.from, mv.to);
-      m.moves.push({ fromRel: relOf(home, mv.from)!, toRel: mv.to.slice(offDir(home).length + 1).split("\\").join("/") });
     }
   } catch (e) {
     restore(home, m); // 반영 도중 실패하면 원래대로 돌리고 알린다
+    m.status = "failed";
+    writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2));
     throw e;
   }
   for (const f of files) f.appliedHash = hashOrNull(absOf(home, f.rel));
+  m.status = "applied";
   writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2));
   return m;
 }
@@ -176,7 +217,8 @@ export function listBackups(home: string): Manifest[] {
   const out: Manifest[] = [];
   for (const n of names) {
     try {
-      out.push(JSON.parse(readFileSync(join(backupsDir(home), n, "manifest.json"), "utf8")));
+      const mf: Manifest = JSON.parse(readFileSync(join(backupsDir(home), n, "manifest.json"), "utf8"));
+      if (mf.status !== "failed") out.push(mf);
     } catch {}
   }
   return out.sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
@@ -191,7 +233,14 @@ export async function undo(home: string, id: string, runClaude?: Run): Promise<{
   } catch {
     return { ok: false, message: "그 백업을 찾을 수 없어요: " + id };
   }
-  const changed = m.files.filter((f) => hashOrNull(absOf(home, f.rel)) !== f.appliedHash);
+  if (m.status === "failed") return { ok: false, message: "적용에 실패해서 이미 원래대로 돌려 놓았어요. 되돌릴 것이 없어요" };
+  const interrupted = m.status === "applying"; // 적용 도중 멈춘 기록은 해시 없이 되돌린다
+  try {
+    for (const f of m.files) assertNotLinked(home, absOf(home, f.rel));
+  } catch (e: any) {
+    return { ok: false, message: e.message };
+  }
+  const changed = interrupted ? [] : m.files.filter((f) => hashOrNull(absOf(home, f.rel)) !== f.appliedHash);
   if (changed.length) {
     return {
       ok: false,
@@ -200,6 +249,7 @@ export async function undo(home: string, id: string, runClaude?: Run): Promise<{
   }
   for (const mv of m.moves) {
     const to = offAbs(home, mv.toRel);
+    if (interrupted && (existsSync(to) ? false : true)) continue;
     if (existsSync(absOf(home, mv.fromRel))) return { ok: false, message: `제자리에 같은 이름이 이미 있어서 되돌리지 않았어요 (${mv.fromRel}). 보관한 파일은 ${to} 에 있어요` };
     if (!existsSync(to)) return { ok: false, message: `보관한 파일이 없어서 되돌릴 수 없어요 (${mv.toRel}). 보관 폴더: ${offDir(home)}` };
   }
@@ -213,3 +263,4 @@ export async function undo(home: string, id: string, runClaude?: Run): Promise<{
   const note = m.cliKeys?.length && !runClaude ? " 플러그인은 claude plugin enable 로 다시 켜 주세요." : "";
   return { ok: true, message: "되돌렸어요. Claude Code 를 다시 시작하면 반영돼요." + note };
 }
+
