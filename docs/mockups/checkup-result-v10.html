@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검진 결과지와 연결 지도 - 시안 v10</title>
+<link rel="stylesheet" href="/files/base.css">
+<link rel="stylesheet" href="/files/app.css">
+<style>
+  .page { max-width: calc(var(--space-7) * 20); margin: 0 auto; padding: var(--space-6) var(--space-5); display: grid; gap: var(--space-5); }
+  .bar { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+  h1 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  h2 { font-size: var(--font-size-subtitle); font-weight: var(--font-weight-subtitle); color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  .meta { font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+  .sub { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+  .verdict { display: grid; gap: var(--space-2); }
+  .verdict p.big { font-size: var(--font-size-title); font-weight: 700; color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  .verdict em { font-style: normal; color: var(--color-brand-text); }
+  .risk { display: grid; gap: var(--space-3); background: var(--color-danger-tint); border-radius: var(--radius-xl); padding: var(--space-5); }
+  .risk h2 { color: var(--color-danger); }
+  .todo-list { display: grid; gap: var(--space-3); }
+  .todo { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); align-items: start; }
+  .num { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text-strong); display: grid; place-items: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .todo-body { display: grid; gap: var(--space-2); min-width: 0; }
+  .gain { display: inline-flex; gap: var(--space-2); align-items: center; color: var(--color-success); font-size: var(--font-size-body-small); font-weight: 600; }
+  .acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .page .btn-secondary { background: var(--color-surface); color: var(--color-text-strong); }
+  .page .btn-ghost { color: var(--color-brand-text); }
+  .page .btn-primary { background: var(--color-brand); color: var(--color-text-inverse); }
+  .compare { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-5); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-xl); color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+  .more { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .divider { height: 1px; background: var(--color-border); margin: var(--space-5) 0; }
+  .label { font-size: var(--font-size-caption); font-weight: 600; letter-spacing: .04em; color: var(--color-text-hint); }
+
+  .map-wrap { overflow-x: auto; background: var(--color-canvas); border-radius: var(--radius-xl); }
+  .map { position: relative; width: calc(var(--space-7) * 19); height: calc(var(--space-7) * 9); }
+  .map svg { position: absolute; inset: 0; }
+  .ln { fill: none; stroke: var(--color-border-control); }
+  .ln.ref { stroke-dasharray: 6 5; }
+  .col-h { position: absolute; top: var(--space-4); font-size: var(--font-size-caption); font-weight: 600; color: var(--color-text-hint); }
+  .box { position: absolute; width: calc(var(--space-7) * 4); display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+  .box b { color: var(--color-text-strong); font-size: var(--font-size-body-small); }
+  .box span { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+  .box.lost { background: var(--color-danger-tint); border: 1px dashed var(--color-danger); }
+  .box.lost b { color: var(--color-danger); }
+  .box.sel { border-color: var(--color-brand); background: var(--color-brand-tint); }
+  .meter { height: var(--space-2); border-radius: var(--radius-pill); background: var(--color-canvas); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--color-brand); }
+  .legend { display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .legend i { display: inline-block; width: var(--space-5); height: 0; border-top: 2px solid var(--color-border-control); vertical-align: middle; margin-right: var(--space-2); }
+  .legend i.d { border-top-style: dashed; }
+  .leaks { display: grid; gap: var(--space-2); }
+  .leak { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-4); align-items: center; background: var(--color-surface); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+  .leak b { color: var(--color-text-strong); font-size: var(--font-size-body-small); }
+  .leak p { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+  .path { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .path .badge { font-size: var(--font-size-body-small); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="bar">
+    <div>
+      <h1>내 Claude 설정 검진 결과</h1>
+      <div class="meta">11월 1일 점검 · 최근 30일 대화 기록 1,782개 파일 기준 · AI를 쓰지 않아 토큰 0</div>
+    </div>
+    <div class="acts"><button class="btn btn-secondary btn-sm" type="button">다시 점검</button><button class="btn btn-secondary btn-sm" type="button">설정</button></div>
+  </div>
+
+  <section class="card verdict" aria-label="판정">
+    <p class="big">손볼 곳이 <em>3가지</em> 있어요.</p>
+    <p>지금은 대화를 시작할 때마다 A4 약 16쪽이 미리 채워져요. 그중 약 7쪽은 한 달 동안 한 번도 안 쓴 내용이에요. 아래 3가지를 하면 이 7쪽을 대부분 덜어 낼 수 있어요.</p>
+  </section>
+
+  <section class="risk" aria-label="위험">
+    <h2>위험 1가지: 비밀값이 적힌 파일이 있어요</h2>
+    <p>메모리 파일 5개에 토큰이나 키로 보이는 값이 글자 그대로 적혀 있어요. Claude가 이 파일을 읽으면 그 값이 대화 기록에도 남아요. 값은 이 앱도 보여 주지 않아요.</p>
+    <div class="acts"><button class="btn btn-secondary btn-sm" type="button">Claude에게 맡길 말 복사</button><button class="btn btn-ghost btn-sm" type="button">어떤 파일인지 보기</button></div>
+  </section>
+
+  <section aria-label="할 일">
+    <h2 style="margin-bottom:var(--space-3)">효과가 큰 순서로 이렇게 해 보세요</h2>
+    <div class="todo-list">
+      <article class="card todo">
+        <span class="num">1</span>
+        <div class="todo-body">
+          <h2>한 달 동안 안 쓴 플러그인 10개 끄기</h2>
+          <span class="gain">얻는 것: 대화마다 A4 약 5쪽이 줄어요</span>
+          <p class="sub">vercel, slack, supabase 외 7개. 지우는 게 아니라 끄는 거라서 언제든 다시 켤 수 있어요.</p>
+          <div class="acts"><button class="btn btn-secondary btn-sm" type="button">Claude에게 맡길 말 복사</button><button class="btn btn-ghost btn-sm" type="button">직접 하는 순서</button></div>
+        </div>
+      </article>
+      <article class="card todo">
+        <span class="num">2</span>
+        <div class="todo-body">
+          <h2>길이 끊긴 메모리 파일 52개 정리하기</h2>
+          <span class="gain">얻는 것: AI가 필요한 메모리를 찾아 쓸 수 있어요</span>
+          <p class="sub">어디서도 이어지지 않아서 AI가 찾을 길이 없어요. 실제로 이 52개는 한 달 동안 한 번도 읽히지 않았어요.</p>
+          <div class="acts"><button class="btn btn-secondary btn-sm" type="button">Claude에게 맡길 말 복사</button><button class="btn btn-ghost btn-sm" type="button">연결 지도에서 보기</button></div>
+        </div>
+      </article>
+      <article class="card todo">
+        <span class="num">3</span>
+        <div class="todo-body">
+          <h2>실패한 자동 실행 규칙 4개 확인하기</h2>
+          <span class="gain">얻는 것: 작업이 중간에 조용히 빠지는 일을 막아요</span>
+          <p class="sub">context-injector.mjs, telemetry.mjs 외 2개. 한 번씩만 실패해서 일시적인 문제일 수도 있어요.</p>
+          <div class="acts"><button class="btn btn-secondary btn-sm" type="button">Claude에게 맡길 말 복사</button><button class="btn btn-ghost btn-sm" type="button">직접 하는 순서</button></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="compare">첫 검진이에요. 고친 뒤 다시 열면, 무엇이 얼마나 줄었는지 여기에 보여 드려요.</div>
+
+  <div class="more">
+    <button class="btn btn-primary" type="button">연결 지도 보기</button>
+    <button class="btn btn-secondary" type="button">전체 진단 59건</button>
+    <button class="btn btn-secondary" type="button">사용 현황</button>
+  </div>
+  <p class="meta">플러그인별 절약량과 위험 파일 수는 예시예요. 길이 끊긴 파일 52개, 한 달 0번 읽힘은 이 PC의 실제 숫자예요.</p>
+
+  <div class="divider"></div>
+
+  <div class="bar">
+    <div>
+      <div class="label">다음 화면 · 연결 지도</div>
+      <h1>AI가 md 파일을 찾아가는 길</h1>
+      <p class="sub">AI는 매번 실리는 CLAUDE.md 와 MEMORY.md 를 출발점으로, 목차와 링크를 따라 다른 파일을 찾아가요.</p>
+    </div>
+  </div>
+
+  <section class="card verdict">
+    <p class="big">md 파일 256개 중 <em>52개</em>는 길이 없어요.</p>
+    <p>204개는 출발점에서 이어져 있어요. 길이 없는 52개는 한 달 동안 한 번도 읽히지 않았어요. 길은 있지만 한 달 동안 안 읽힌 파일도 131개 있어요.</p>
+  </section>
+
+  <div class="legend"><span><i></i>목차나 링크로 이어짐</span><span><i class="d"></i>이름만 언급됨</span><span>막대 = 한 달 동안 읽힌 비율</span></div>
+
+  <div class="map-wrap">
+    <div class="map">
+      <svg viewBox="0 0 912 432" preserveAspectRatio="none" aria-hidden="true">
+        <path class="ln" d="M216 92 C252 92 252 92 288 92" stroke-width="5"/>
+        <path class="ln" d="M216 92 C252 92 252 196 288 196" stroke-width="3"/>
+        <path class="ln" d="M216 196 C252 196 252 196 288 196" stroke-width="4"/>
+        <path class="ln" d="M216 300 C252 300 252 300 288 300" stroke-width="2"/>
+        <path class="ln ref" d="M480 196 C512 196 512 120 544 120" stroke-width="1.5"/>
+      </svg>
+      <span class="col-h" style="left:24px">출발점 · 매번 실려요</span>
+      <span class="col-h" style="left:288px">한 단계 이어짐 · 192개</span>
+      <span class="col-h" style="left:544px">두 단계 · 4개</span>
+      <span class="col-h" style="left:704px;color:var(--color-danger)">길 없음 · 52개</span>
+
+      <div class="box" style="left:24px;top:56px;width:192px"><b>MEMORY.md (lash)</b><span>151줄 · 목차 항목 118개</span></div>
+      <div class="box" style="left:24px;top:160px;width:192px"><b>MEMORY.md (claudeT)</b><span>108줄 · 목차 항목 66개</span></div>
+      <div class="box" style="left:24px;top:264px;width:192px"><b>전역 CLAUDE.md 외 5</b><span>CLAUDE.md, 프로젝트 목차</span></div>
+
+      <div class="box sel" style="left:288px;top:56px;width:192px"><b>lash 메모리 118개</b><div class="meter"><i style="width:44%"></i></div><span>한 달 동안 52개 읽힘</span></div>
+      <div class="box" style="left:288px;top:160px;width:192px"><b>claudeT 메모리 66개</b><div class="meter"><i style="width:9%"></i></div><span>한 달 동안 6개 읽힘</span></div>
+      <div class="box" style="left:288px;top:264px;width:192px"><b>기타 8개</b><div class="meter"><i style="width:25%"></i></div><span>한 달 동안 2개 읽힘</span></div>
+
+      <div class="box" style="left:544px;top:84px;width:144px"><b>4개</b><span>메모리끼리 링크로만 이어짐</span></div>
+
+      <div class="box lost" style="left:704px;top:56px;width:184px"><b>lash 25개</b><span>목차에도, 링크에도 없어요</span></div>
+      <div class="box lost" style="left:704px;top:160px;width:184px"><b>claudeT 24개</b><span>예전 PC에서 옮긴 폴더</span></div>
+      <div class="box lost" style="left:704px;top:264px;width:184px"><b>~/.claude/memory 3개</b><span>목차 파일이 없는 폴더</span></div>
+    </div>
+  </div>
+
+  <section class="card" aria-label="누수 목록" style="display:grid;gap:var(--space-3)">
+    <h2>연결 누수</h2>
+    <div class="leaks">
+      <div class="leak"><div><b>길 없음 52개</b><p>어디서도 이어지지 않아 AI가 찾을 수 없어요.</p></div><button class="btn btn-secondary btn-sm" type="button">맡길 말 복사</button></div>
+      <div class="leak"><div><b>끊긴 링크 2곳</b><p>지워진 파일을 가리키고 있어요. cxo_research_archive.md 에서 16개씩.</p></div><button class="btn btn-secondary btn-sm" type="button">맡길 말 복사</button></div>
+      <div class="leak"><div><b>길은 있는데 한 달 동안 안 읽힘 131개</b><p>목차에는 있지만 쓰이지 않아요. 오래된 내용이면 정리 대상이에요.</p></div><button class="btn btn-ghost btn-sm" type="button">목록 보기</button></div>
+      <div class="leak"><div><b>매번 실리는데 안 쓰임 A4 약 7쪽</b><p>작업 설명서·에이전트 목록 중 한 달 동안 한 번도 안 부른 것이에요.</p></div><button class="btn btn-ghost btn-sm" type="button">목록 보기</button></div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="파일 하나의 길" style="display:grid;gap:var(--space-3)">
+    <h2>파일 하나를 누르면: feedback_rework_causes.md</h2>
+    <div class="path"><span class="badge">MEMORY.md (lash)</span>목차에서<span class="badge badge-brand">feedback_rework_causes.md</span>링크로<span class="badge">feedback_wireframe_failure_modes.md</span></div>
+    <p class="sub">들어오는 길 7개, 나가는 길 4개 · 한 달 동안 5번 읽힘 · 마지막 10월 25일</p>
+  </section>
+
+</div>
+</body>
+</html>

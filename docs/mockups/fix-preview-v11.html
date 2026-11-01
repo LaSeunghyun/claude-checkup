@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고치기 미리 보기 - 시안 v11</title>
+<link rel="stylesheet" href="/files/base.css">
+<link rel="stylesheet" href="/files/app.css">
+<style>
+  .page { max-width: calc(var(--space-7) * 16); margin: 0 auto; padding: var(--space-6) var(--space-5); display: grid; gap: var(--space-6); }
+  .page .btn-secondary { background: var(--color-canvas); color: var(--color-text-strong); }
+  .page .btn-ghost { color: var(--color-brand-text); }
+  .page .btn-primary { background: var(--color-brand); color: var(--color-text-inverse); }
+  .label { font-size: var(--font-size-caption); font-weight: 600; letter-spacing: .04em; color: var(--color-text-hint); }
+  .sheet { display: grid; gap: var(--space-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-5); box-shadow: var(--shadow-float); }
+  .sheet > *, .done > * { min-width: 0; }
+  .head { display: flex; justify-content: space-between; gap: var(--space-3); align-items: flex-start; }
+  h2 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  h3 { font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-strong); margin-bottom: var(--space-2); }
+  .sub { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+  .meta { font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+  .effects { display: grid; gap: var(--space-2); }
+  .eff { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); align-items: center; background: var(--color-canvas); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+  .eff p { color: var(--color-text-default); font-size: var(--font-size-body-small); }
+  .eff b { font-variant-numeric: tabular-nums; color: var(--color-text-strong); white-space: nowrap; }
+  .eff.good b { color: var(--color-success); }
+  .eff.cost b { color: var(--color-warning); }
+  .diff { background: var(--color-canvas); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--font-size-body-small); line-height: 1.7; overflow-x: auto; white-space: pre; color: var(--color-text-default); }
+  .diff .add { color: var(--color-success); }
+  .diff .file { color: var(--color-text-strong); font-weight: 600; }
+  .note { display: grid; gap: var(--space-1); background: var(--color-info-tint); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+  .note p { color: var(--color-text-default); font-size: var(--font-size-body-small); }
+  .foot { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
+  .lose { display: grid; gap: var(--space-1); }
+  .lose li { color: var(--color-text-default); font-size: var(--font-size-body-small); }
+  .done { display: grid; gap: var(--space-4); background: var(--color-success-tint); border-radius: var(--radius-xl); padding: var(--space-5); }
+  .done h2 { color: var(--color-success); }
+  .vs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .vs div { background: var(--color-surface); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+  .vs b { display: block; font-size: var(--font-size-subtitle); color: var(--color-text-strong); font-variant-numeric: tabular-nums; }
+  .vs span { font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .x { width: var(--control-height); padding: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="label">흐름: 고치기 누름 → 미리 보기 → 적용 → 다시 점검 → 전후 비교 (되돌리기 가능)</div>
+
+  <!-- A. claude -p 로 만든 미리 보기 -->
+  <section class="sheet" aria-label="미리 보기">
+    <div class="head">
+      <div>
+        <div class="label">미리 보기 · Claude가 만든 변경안이에요. 아직 아무것도 바뀌지 않았어요</div>
+        <h2>길 없는 메모리 25개를 목차에 넣기</h2>
+      </div>
+      <button class="btn btn-secondary x" type="button" aria-label="닫기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <div>
+      <h3>이렇게 하면 어떻게 되나요?</h3>
+      <div class="effects">
+        <div class="eff good"><p>AI가 찾아갈 수 없던 메모리가 목차에 들어가, 필요할 때 읽을 수 있게 돼요.</p><b>길 없음 52 → 27개</b></div>
+        <div class="eff"><p>MEMORY.md 가 길어지지만 아직 200줄 한도 안이에요.</p><b>151 → 176줄</b></div>
+        <div class="eff cost"><p>목차는 대화마다 실리므로, 대화마다 읽는 양이 조금 늘어요.</p><b>A4 +0.6쪽</b></div>
+      </div>
+      <p class="meta" style="margin-top:var(--space-2)">숫자는 아래 변경안을 그대로 다시 재서 계산했어요. 추측이 아니에요.</p>
+    </div>
+
+    <div>
+      <h3>바뀌는 파일 1개</h3>
+      <div class="diff"><span class="file">~/.claude/projects/C--lash/memory/MEMORY.md</span>   +25줄, 지우는 줄 없음
+<span class="add">+ - [광고 애니메이션 패턴](AD_ANIMATION_PATTERNS.md) - 광고 소재 모션 사례 모음</span>
+<span class="add">+ - [CTO 애드테크 학습 노트](CTO_ADTECH_NESTADS_STUDY.md) - 애드테크 구조 학습 기록</span>
+<span class="add">+ - [SDK 코드 색인: iOS](reference_sdk_code_index_ios.md) - iOS SDK 동작 질문 시 먼저 읽기</span>
+  ... 22줄 더</div>
+    </div>
+
+    <div class="note">
+      <p>적용하면 원본을 먼저 ~/.claude-checkup/backups/11-01-1312/ 에 저장해요. 마음에 안 들면 "되돌리기" 한 번으로 원래대로 돌아가요.</p>
+      <p>이 변경안을 만드는 데 Claude 사용량 약 1만 2천 토큰을 썼어요. 적용할 때는 추가로 쓰지 않아요.</p>
+    </div>
+
+    <div class="foot">
+      <button class="btn btn-secondary" type="button">취소</button>
+      <button class="btn btn-secondary" type="button">다른 안 만들기</button>
+      <button class="btn btn-primary" type="button">적용하기</button>
+    </div>
+  </section>
+
+  <!-- B. 기계로 되는 미리 보기 -->
+  <section class="sheet" aria-label="미리 보기 2">
+    <div class="head">
+      <div>
+        <div class="label">미리 보기 · AI 없이 바로 할 수 있는 일이라 사용량이 들지 않아요</div>
+        <h2>한 달 동안 안 쓴 플러그인 10개 끄기</h2>
+      </div>
+      <button class="btn btn-secondary x" type="button" aria-label="닫기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div>
+      <h3>이렇게 하면 어떻게 되나요?</h3>
+      <div class="effects">
+        <div class="eff good"><p>대화를 시작할 때마다 미리 채워지는 양이 줄어요.</p><b>A4 16 → 11쪽</b></div>
+        <div class="eff good"><p>AI가 고를 작업 설명서 목록이 짧아져서, 엉뚱한 것을 고를 일이 줄어요.</p><b>153 → 97개</b></div>
+        <div class="eff cost"><p>아래 기능은 다시 켜기 전까지 쓸 수 없어요. 모두 한 달 동안 0번 썼어요.</p><b>10개 플러그인</b></div>
+      </div>
+    </div>
+    <div>
+      <h3>꺼지는 것</h3>
+      <ul class="lose">
+        <li>vercel: 배포·환경변수 관련 작업 설명서 34개, 에이전트 3개</li>
+        <li>slack: 채널 요약·메시지 작성 작업 설명서 9개</li>
+        <li>supabase 외 7개 ... <button class="btn btn-ghost btn-sm" type="button">모두 보기</button></li>
+      </ul>
+    </div>
+    <div class="note"><p>지우는 게 아니라 끄는 거예요. 되돌리기 한 번이나 /plugin 에서 언제든 다시 켤 수 있어요. Claude Code를 다시 시작하면 적용돼요.</p></div>
+    <div class="foot">
+      <button class="btn btn-secondary" type="button">취소</button>
+      <button class="btn btn-primary" type="button">10개 끄기</button>
+    </div>
+  </section>
+
+  <!-- C. 적용 뒤 -->
+  <section class="done" aria-label="적용 결과">
+    <h2>적용했어요. 다시 점검했더니 이렇게 바뀌었어요</h2>
+    <div class="vs">
+      <div><b>A4 16 → 11.2쪽</b><span>대화마다 미리 채워지는 양 (기대 11쪽)</span></div>
+      <div><b>153 → 97개</b><span>작업 설명서 목록</span></div>
+      <div><b>59 → 47건</b><span>남은 진단</span></div>
+    </div>
+    <p class="sub">Claude Code를 다시 시작하면 새 대화부터 적용돼요.</p>
+    <div class="foot" style="justify-content:flex-start">
+      <button class="btn btn-secondary" type="button">되돌리기</button>
+      <button class="btn btn-secondary" type="button">다음 할 일 보기</button>
+    </div>
+  </section>
+
+  <p class="meta">A4 쪽수, 개수, 사용량은 예시예요. 실제 값은 미리 보기를 만들 때 그 변경안으로 계산해요.</p>
+</div>
+</body>
+</html>

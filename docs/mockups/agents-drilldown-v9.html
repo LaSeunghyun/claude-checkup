@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 AI 설정 점검 - 시안 v9 에이전트 펼침</title>
+<link rel="stylesheet" href="/files/base.css">
+<link rel="stylesheet" href="/files/app.css">
+<style>
+  .page { max-width: calc(var(--space-7) * 23); margin: 0 auto; padding: var(--space-6) var(--space-5); display: grid; gap: var(--space-5); }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+  .top h1 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); line-height: var(--line-height-tight); color: var(--color-text-strong); }
+  .top p { color: var(--color-text-subtle); font-size: var(--font-size-body-small); margin-top: var(--space-1); }
+  .meta { font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+
+  .summary { display: grid; gap: var(--space-4); }
+  .summary-lead { font-size: var(--font-size-subtitle); font-weight: var(--font-weight-subtitle); color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  .summary-lead em { font-style: normal; color: var(--color-brand-text); }
+  .fill { display: flex; height: var(--space-3); border-radius: var(--radius-pill); overflow: hidden; background: var(--color-surface); }
+  .fill i { display: block; }
+  .fill .used { background: var(--color-brand); }
+  .fill .idle { background: var(--color-border-strong); }
+  .legend { display: flex; flex-wrap: wrap; gap: var(--space-4); font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .legend i { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-pill); margin-right: var(--space-2); vertical-align: -1px; }
+  .checks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .checks .grow { flex: 1; }
+
+  .map-wrap { overflow-x: auto; border-radius: var(--radius-xl); background: var(--color-canvas); }
+  .map { position: relative; width: calc(var(--space-7) * 23); height: calc(var(--space-7) * 15); }
+  .map svg { position: absolute; inset: 0; }
+  .ln { fill: none; stroke: var(--color-border-control); }
+  .ln.busy { stroke: var(--color-text-subtle); }
+  .ln.ref { stroke: var(--color-border-control); stroke-dasharray: 6 5; }
+  .ln.faint { stroke: var(--color-border-strong); stroke-dasharray: 4 5; }
+  .col-label { position: absolute; font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+
+  .node { position: absolute; width: calc(var(--space-7) * 4 + var(--space-6)); display: grid; gap: var(--space-1); text-align: left; padding: var(--space-3) var(--space-4);
+          background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); cursor: pointer;
+          transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease); }
+  .node:hover { border-color: var(--color-border-control); }
+  .node[aria-pressed="true"] { background: var(--color-brand-tint); border-color: var(--color-brand); }
+  .node.ghost { background: transparent; border: 1px dashed var(--color-border-control); }
+  .node.start { width: calc(var(--space-7) * 2 + var(--space-5)); border-radius: var(--radius-pill); text-align: center; }
+  .node-kind { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+  .node-title { font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-strong); }
+  .node-meta { font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .node.ghost .node-title { color: var(--color-text-subtle); }
+  .tag { font-size: var(--font-size-caption); font-weight: 600; padding: 0 var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
+  .tag.warn { background: var(--color-warning-tint); color: var(--color-warning); }
+  .tag.bad { background: var(--color-danger-tint); color: var(--color-danger); }
+  .tag.idle { background: var(--color-canvas); color: var(--color-text-subtle); }
+  .tag.ok { background: var(--color-success-tint); color: var(--color-success); }
+
+  .dialog.big { max-width: calc(var(--space-7) * 15); max-height: calc(100vh - var(--space-7) * 2); overflow-y: auto; gap: var(--space-5); }
+  .dlg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+  .dlg-head h2 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); color: var(--color-text-strong); line-height: var(--line-height-tight); margin-top: var(--space-2); }
+  .dlg-sum { color: var(--color-text-default); }
+  .icon-btn { width: var(--control-height); padding: 0; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+  .stat { background: var(--color-canvas); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); min-width: 0; }
+  .stat b { display: block; font-size: var(--font-size-subtitle); font-weight: 700; color: var(--color-text-strong); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .sec-title { font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-strong); margin-bottom: var(--space-2); }
+  .split { display: flex; height: var(--space-3); border-radius: var(--radius-pill); overflow: hidden; margin-bottom: var(--space-2); }
+  .notice { display: grid; gap: var(--space-2); background: var(--color-warning-tint); border-radius: var(--radius-lg); padding: var(--space-4); }
+  .notice p { color: var(--color-text-default); font-size: var(--font-size-body-small); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .chips .btn { background: var(--color-canvas); color: var(--color-text-strong); }
+  .dlg-foot { display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+  .term { font-size: var(--font-size-caption); color: var(--color-text-hint); }
+  @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+<style>
+  .crumb { display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap; }
+  .crumb .here { font-size:var(--font-size-subtitle); font-weight:var(--font-weight-subtitle); color:var(--color-text-strong); }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; }
+  .groups { display:grid; grid-template-columns:repeat(auto-fill, minmax(calc(var(--space-7) * 6), 1fr)); gap:var(--space-4); align-items:start; }
+  .grp { display:grid; gap:var(--space-3); }
+  .grp-h { display:flex; align-items:center; justify-content:space-between; gap:var(--space-2); }
+  .grp-h b { font-size:var(--font-size-body-small); color:var(--color-text-strong); }
+  .grp .node { position:static; width:auto; }
+  .grp.is-idle .grp-h b { color:var(--color-text-subtle); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <div class="crumb">
+      <button class="btn btn-secondary btn-sm" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>전체 지도
+      </button>
+      <span class="here">에이전트 27개</span>
+    </div>
+    <button class="btn btn-secondary btn-sm" id="theme" type="button">어둡게 보기</button>
+  </div>
+
+  <section class="card summary" aria-label="요약">
+    <p class="summary-lead">에이전트 27개 중 한 달 동안 쓴 것은 <em>9개</em>예요. 목록은 대화마다 컨텍스트에 A4 약 3쪽을 차지해요.</p>
+    <div class="bar">
+      <div class="segmented" role="tablist" aria-label="보는 방식">
+        <button type="button" aria-selected="true">묶음별</button>
+        <button type="button" aria-selected="false">많이 쓴 순</button>
+        <button type="button" aria-selected="false">안 쓴 것만 18</button>
+      </div>
+      <span class="meta">이름은 이 PC의 실제 에이전트, 사용 횟수는 예시</span>
+    </div>
+  </section>
+
+  <div class="groups">
+    <section class="card grp" aria-label="nestads-product-review">
+      <div class="grp-h"><b>nestads-product-review</b><span class="badge badge-success">5개 중 5개 씀</span></div>
+      <div class="meta">기획서 검토 묶음</div>
+        <button class="node" type="button" data-title="plan-lens-policy" data-sum="정책 문서와 비교해 기획서의 충돌과 누락을 찾아요"><span class="node-kind">에이전트<span class="tag ok">14번</span></span><span class="node-title">plan-lens-policy</span><span class="node-meta">plan-review가 불러요</span></button>
+        <button class="node" type="button" data-title="plan-lens-readability" data-sum="기획서 문장이 읽기 쉬운지 점검해요"><span class="node-kind">에이전트<span class="tag ok">14번</span></span><span class="node-title">plan-lens-readability</span><span class="node-meta">plan-review가 불러요</span></button>
+        <button class="node" type="button" data-title="plan-lens-dev-policy" data-sum="개발 쪽에 이미 있는 규칙을 기획서가 고려했는지 봐요"><span class="node-kind">에이전트<span class="tag ok">14번</span></span><span class="node-title">plan-lens-dev-policy</span><span class="node-meta">plan-review가 불러요</span></button>
+        <button class="node" type="button" data-title="plan-lens-impl-fitness" data-sum="실제 시스템 기준으로 만들 수 있는 기획인지 봐요"><span class="node-kind">에이전트<span class="tag ok">11번</span></span><span class="node-title">plan-lens-impl-fitness</span><span class="node-meta">plan-review가 불러요</span></button>
+        <button class="node" type="button" data-title="plan-lens-kb" data-sum="과거 리뷰에서 반복된 누락이 이번에도 있는지 봐요"><span class="node-kind">에이전트<span class="tag ok">14번</span></span><span class="node-title">plan-lens-kb</span><span class="node-meta">plan-review가 불러요</span></button>
+    </section>
+    <section class="card grp" aria-label="기본 제공">
+      <div class="grp-h"><b>기본 제공</b><span class="badge badge-success">6개 중 3개 씀</span></div>
+      <div class="meta">Claude Code에 처음부터 들어 있어요</div>
+        <button class="node" type="button" data-title="general-purpose" data-sum="여러 단계 조사나 검색을 맡아요"><span class="node-kind">에이전트<span class="tag ok">31번</span></span><span class="node-title">general-purpose</span><span class="node-meta">직접 부르거나 AI가 골라요</span></button>
+        <button class="node" type="button" data-title="Explore" data-sum="파일을 넓게 훑어 위치만 찾아요"><span class="node-kind">에이전트<span class="tag ok">18번</span></span><span class="node-title">Explore</span><span class="node-meta">AI가 골라요</span></button>
+        <button class="node" type="button" data-title="Plan" data-sum="구현 계획을 세워요"><span class="node-kind">에이전트<span class="tag ok">4번</span></span><span class="node-title">Plan</span><span class="node-meta">AI가 골라요</span></button>
+        <button class="node ghost" type="button" data-title="claude-code-guide" data-sum="Claude Code 사용법 질문에 답해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">claude-code-guide</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="statusline-setup" data-sum="상태 표시줄 설정을 바꿔요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">statusline-setup</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="claude" data-sum="다른 데 맞지 않는 일을 맡아요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">claude</span><span class="node-meta">목록에만 있어요</span></button>
+    </section>
+    <section class="card grp" aria-label="nestads-backend-pipeline">
+      <div class="grp-h"><b>nestads-backend-pipeline</b><span class="badge badge-success">3개 중 1개 씀</span></div>
+      <div class="meta">백엔드 개발 묶음</div>
+        <button class="node" type="button" data-title="plan-agent" data-sum="Jira 에픽과 Figma를 분석해 계획을 써요"><span class="node-kind">에이전트<span class="tag ok">2번</span></span><span class="node-title">plan-agent</span><span class="node-meta">plan 작업 설명서가 불러요</span></button>
+        <button class="node ghost" type="button" data-title="implement-agent" data-sum="기존 코드를 훑어 구현 설계를 써요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">implement-agent</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="code-writer-agent" data-sum="테스트를 통과할 때까지 구현해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">code-writer-agent</span><span class="node-meta">목록에만 있어요</span></button>
+    </section>
+    <section class="card grp is-idle" aria-label="nestads-frontend-pipeline">
+      <div class="grp-h"><b>nestads-frontend-pipeline</b><span class="badge">7개 중 0개 씀</span></div>
+      <div class="meta">프론트엔드 개발 묶음</div>
+        <button class="node ghost" type="button" data-title="architect" data-sum="요구사항을 분석해 화면 설계를 해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">architect</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="code-reviewer" data-sum="PR 전에 코드 리뷰를 해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">code-reviewer</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="executor" data-sum="설계대로 코드를 작성해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">executor</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="vitest-test-engineer" data-sum="단위 테스트를 써요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">vitest-test-engineer</span><span class="node-meta">목록에만 있어요</span></button>
+        <button class="node ghost" type="button" data-title="playwright-test 3종" data-sum="브라우저 테스트를 계획, 생성, 수리해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">playwright-test 3종</span><span class="node-meta">목록에만 있어요</span></button>
+    </section>
+    <section class="card grp is-idle" aria-label="nestads-frontend">
+      <div class="grp-h"><b>nestads-frontend</b><span class="badge">3개 중 0개 씀</span></div>
+      <div class="meta">어드민 테스트 묶음</div>
+        <button class="node ghost" type="button" data-title="admin-playwright-test 3종" data-sum="어드민 화면 테스트를 계획, 생성, 수리해요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">admin-playwright-test 3종</span><span class="node-meta">목록에만 있어요</span></button>
+    </section>
+    <section class="card grp is-idle" aria-label="vercel">
+      <div class="grp-h"><b>vercel</b><span class="badge">3개 중 0개 씀</span></div>
+      <div class="meta">Vercel 배포 묶음</div>
+        <button class="node ghost" type="button" data-title="ai-architect 외 2" data-sum="AI 앱 설계, 배포, 성능 개선을 맡아요"><span class="node-kind">에이전트<span class="tag idle">한 달 0번</span></span><span class="node-title">ai-architect 외 2</span><span class="node-meta">목록에만 있어요</span></button>
+    </section>
+  </div>
+</div>
+<div class="overlay overlay--center" id="ov" role="presentation" hidden>
+  <div class="dialog big" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+    <div class="dlg-head">
+      <div>
+        <span class="badge badge-brand">작업 설명서</span>
+        <h2 id="dlg-t">plan-review</h2>
+        <div class="term">원래 이름: 스킬(Skill) · nestads-product-review 묶음에 들어 있어요</div>
+      </div>
+      <button class="btn btn-secondary icon-btn" id="close" type="button" aria-label="닫기">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <p class="dlg-sum">기획서를 다섯 가지 관점(정책, 읽기 쉬움, 개발 규칙, 실제로 만들 수 있는지, 자주 빠뜨리는 것)으로 나눠 검토하고, 결과를 하나로 합쳐 줘요.</p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" type="button">요약</button>
+      <button role="tab" aria-selected="false" type="button">연결 9</button>
+      <button role="tab" aria-selected="false" type="button">원문</button>
+      <button role="tab" aria-selected="false" type="button">시험 결과</button>
+      <button role="tab" aria-selected="false" type="button">바뀐 기록</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>14번</b><span>한 달 동안 사용</span></div>
+      <div class="stat"><b>10월 31일</b><span>마지막 사용</span></div>
+      <div class="stat"><b>612자</b><span>대화마다 미리 읽는 소개 글</span></div>
+      <div class="stat"><b>A4 약 6쪽</b><span>쓸 때마다 읽는 본문</span></div>
+    </div>
+
+    <div>
+      <div class="sec-title">어떻게 쓰였나요?</div>
+      <div class="split" role="img" aria-label="직접 불러서 9번, AI가 골라서 5번">
+        <i style="flex:9;background:var(--color-brand)"></i><i style="flex:5;background:var(--color-border-strong)"></i>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--color-brand)"></i>직접 불러서 9번</span>
+        <span><i style="background:var(--color-border-strong)"></i>AI가 알아서 골라서 5번</span>
+      </div>
+    </div>
+
+    <div class="notice">
+      <span class="badge badge-warning" style="justify-self:start">알아 두면 좋아요</span>
+      <p>본문이 길어서 쓸 때마다 A4 약 6쪽을 읽어요. 관점별 내용을 따로 떼어 두면, 필요한 관점만 읽게 돼서 더 빠르고 저렴해져요.</p>
+    </div>
+
+    <div>
+      <div class="sec-title">함께 쓰이는 것</div>
+      <div class="chips">
+        <button class="btn btn-sm" type="button">에이전트 5개</button>
+        <button class="btn btn-sm" type="button">메모리 1개</button>
+        <button class="btn btn-sm" type="button">참고 문서 25개</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">AI가 제때 골라 쓰나요?</div>
+      <p class="node-meta">"기획서 검토해 줘" 같은 요청 10번 중 9번을 맞게 골랐고, 상관없는 요청 10번에는 한 번도 끼어들지 않았어요. <span class="meta">10월 28일 시험</span></p>
+    </div>
+
+    <div class="dlg-foot">
+      <button class="btn btn-ghost btn-sm" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>이전 항목
+      </button>
+      <button class="btn btn-secondary btn-sm" type="button">지도에서 위치 보기</button>
+      <button class="btn btn-ghost btn-sm" type="button">다음 항목
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ov = document.getElementById('ov');
+  const root = document.documentElement;
+  document.getElementById('close').onclick = () => { ov.hidden = true; };
+  ov.addEventListener('click', e => { if (e.target === ov) ov.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.hidden = true; });
+  document.querySelectorAll('.node[data-title]').forEach(n => n.addEventListener('click', () => {
+    document.getElementById('dlg-t').textContent = n.dataset.title;
+    document.querySelector('.dlg-sum').textContent = n.dataset.sum;
+    document.querySelector('.dialog .badge').textContent = '에이전트';
+    document.querySelector('.term').textContent = '원래 이름: 에이전트(Agent) / ' + n.closest('.grp').querySelector('b').textContent + ' 묶음에 들어 있어요';
+    ov.hidden = false;
+  }));
+  const t = document.getElementById('theme');
+  t.onclick = () => { const d = root.getAttribute('data-theme') === 'dark'; root.setAttribute('data-theme', d ? 'light' : 'dark'); t.textContent = d ? '어둡게 보기' : '밝게 보기'; };
+  root.setAttribute('data-theme', 'light');
+</script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 AI 설정 점검 - 시안 v8</title>
+<link rel="stylesheet" href="/files/base.css">
+<link rel="stylesheet" href="/files/app.css">
+<style>
+  .page { max-width: calc(var(--space-7) * 23); margin: 0 auto; padding: var(--space-6) var(--space-5); display: grid; gap: var(--space-5); }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+  .top h1 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); line-height: var(--line-height-tight); color: var(--color-text-strong); }
+  .top p { color: var(--color-text-subtle); font-size: var(--font-size-body-small); margin-top: var(--space-1); }
+  .meta { font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+
+  .summary { display: grid; gap: var(--space-4); }
+  .summary-lead { font-size: var(--font-size-subtitle); font-weight: var(--font-weight-subtitle); color: var(--color-text-strong); line-height: var(--line-height-tight); }
+  .summary-lead em { font-style: normal; color: var(--color-brand-text); }
+  .fill { display: flex; height: var(--space-3); border-radius: var(--radius-pill); overflow: hidden; background: var(--color-surface); }
+  .fill i { display: block; }
+  .fill .used { background: var(--color-brand); }
+  .fill .idle { background: var(--color-border-strong); }
+  .legend { display: flex; flex-wrap: wrap; gap: var(--space-4); font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .legend i { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-pill); margin-right: var(--space-2); vertical-align: -1px; }
+  .checks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .checks .grow { flex: 1; }
+
+  .map-wrap { overflow-x: auto; border-radius: var(--radius-xl); background: var(--color-canvas); }
+  .map { position: relative; width: calc(var(--space-7) * 23); height: calc(var(--space-7) * 15); }
+  .map svg { position: absolute; inset: 0; }
+  .ln { fill: none; stroke: var(--color-border-control); }
+  .ln.busy { stroke: var(--color-text-subtle); }
+  .ln.ref { stroke: var(--color-border-control); stroke-dasharray: 6 5; }
+  .ln.faint { stroke: var(--color-border-strong); stroke-dasharray: 4 5; }
+  .col-label { position: absolute; font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+
+  .node { position: absolute; width: calc(var(--space-7) * 4 + var(--space-6)); display: grid; gap: var(--space-1); text-align: left; padding: var(--space-3) var(--space-4);
+          background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); cursor: pointer;
+          transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease); }
+  .node:hover { border-color: var(--color-border-control); }
+  .node[aria-pressed="true"] { background: var(--color-brand-tint); border-color: var(--color-brand); }
+  .node.ghost { background: transparent; border: 1px dashed var(--color-border-control); }
+  .node.start { width: calc(var(--space-7) * 2 + var(--space-5)); border-radius: var(--radius-pill); text-align: center; }
+  .node-kind { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); color: var(--color-text-hint); }
+  .node-title { font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-strong); }
+  .node-meta { font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .node.ghost .node-title { color: var(--color-text-subtle); }
+  .tag { font-size: var(--font-size-caption); font-weight: 600; padding: 0 var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
+  .tag.warn { background: var(--color-warning-tint); color: var(--color-warning); }
+  .tag.bad { background: var(--color-danger-tint); color: var(--color-danger); }
+  .tag.idle { background: var(--color-canvas); color: var(--color-text-subtle); }
+  .tag.ok { background: var(--color-success-tint); color: var(--color-success); }
+
+  .dialog.big { max-width: calc(var(--space-7) * 15); max-height: calc(100vh - var(--space-7) * 2); overflow-y: auto; gap: var(--space-5); }
+  .dlg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+  .dlg-head h2 { font-size: var(--font-size-title); font-weight: var(--font-weight-title); color: var(--color-text-strong); line-height: var(--line-height-tight); margin-top: var(--space-2); }
+  .dlg-sum { color: var(--color-text-default); }
+  .icon-btn { width: var(--control-height); padding: 0; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+  .stat { background: var(--color-canvas); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); min-width: 0; }
+  .stat b { display: block; font-size: var(--font-size-subtitle); font-weight: 700; color: var(--color-text-strong); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+  .sec-title { font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-strong); margin-bottom: var(--space-2); }
+  .split { display: flex; height: var(--space-3); border-radius: var(--radius-pill); overflow: hidden; margin-bottom: var(--space-2); }
+  .notice { display: grid; gap: var(--space-2); background: var(--color-warning-tint); border-radius: var(--radius-lg); padding: var(--space-4); }
+  .notice p { color: var(--color-text-default); font-size: var(--font-size-body-small); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .chips .btn { background: var(--color-canvas); color: var(--color-text-strong); }
+  .dlg-foot { display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+  .term { font-size: var(--font-size-caption); color: var(--color-text-hint); }
+  @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <div>
+      <h1>내 AI 설정 한눈에 보기</h1>
+      <p>.claude 폴더에 넣어 둔 지시문, 메모리, 작업 설명서, 에이전트가 실제로 얼마나 쓰이는지 보여 줘요.</p>
+      <div class="meta">최근 30일 기록 기준 · 10월 2일 ~ 10월 31일 · 수치는 예시</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" id="theme" type="button">어둡게 보기</button>
+  </div>
+
+  <section class="card summary" aria-label="요약">
+    <p class="summary-lead">대화를 시작할 때마다 컨텍스트에 <em>A4 약 25쪽</em> 분량이 미리 채워져요. 그중 절반 넘게는 한 달 동안 한 번도 쓰지 않았어요.</p>
+    <div class="fill" role="img" aria-label="미리 채워지는 분량 중 쓴 것 45퍼센트, 안 쓴 것 55퍼센트">
+      <i class="used" style="flex:45"></i><i class="idle" style="flex:55"></i>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--color-brand)"></i>한 달 안에 쓴 것 A4 11쪽</span>
+      <span><i style="background:var(--color-border-strong)"></i>한 번도 안 쓴 것 A4 14쪽</span>
+      <span class="meta">컨텍스트 전체의 19%</span>
+    </div>
+    <div class="checks">
+      <span class="badge badge-danger">길어서 잘리는 곳 1</span>
+      <span class="badge badge-warning">겹치는 규칙 4</span>
+      <span class="badge">한 달 동안 안 쓴 것 143</span>
+      <span class="grow"></span>
+      <button class="btn btn-primary" type="button">고칠 것 6가지 보기</button>
+    </div>
+  </section>
+
+  <div class="map-wrap">
+    <div class="map" id="map">
+      <svg viewBox="0 0 1104 720" preserveAspectRatio="none" aria-hidden="true">
+        <path class="ln" d="M144 384 C160 384 160 96 176 96" stroke-width="1.5"/>
+        <path class="ln" d="M144 384 C160 384 160 240 176 240" stroke-width="1.5"/>
+        <path class="ln" d="M144 384 H176" stroke-width="1.5"/>
+        <path class="ln" d="M144 384 C160 384 160 528 176 528" stroke-width="1.5"/>
+        <path class="ln faint" d="M288 584 V616" stroke-width="1.5"/>
+        <path class="ln ref" d="M400 360 C430 360 430 300 520 300 C600 300 600 240 640 240" stroke-width="1.5"/>
+        <path class="ln ref" d="M400 528 C430 528 430 470 520 470 C600 470 600 384 640 384" stroke-width="1.5"/>
+        <path class="ln busy" d="M592 384 C616 384 616 240 640 240" stroke-width="4"/>
+        <path class="ln busy" d="M592 384 H640" stroke-width="2"/>
+        <path class="ln busy" d="M848 240 H880" stroke-width="4"/>
+        <path class="ln busy" d="M848 240 C864 240 864 384 880 384" stroke-width="2"/>
+        <path class="ln busy" d="M848 384 C864 384 864 240 880 240" stroke-width="2"/>
+        <path class="ln ref" d="M848 528 C868 528 868 260 880 260" stroke-width="1.5"/>
+        <path class="ln ref" d="M400 240 C420 240 420 690 600 690 C800 690 860 528 880 528" stroke-width="1.5"/>
+      </svg>
+
+      <span class="col-label" style="left:176px;top:16px">대화마다 컨텍스트에 미리 채워져요</span>
+      <span class="col-label" style="left:640px;top:156px">AI가 골라 쓴 것</span>
+      <span class="col-label" style="left:880px;top:156px">AI가 한 일</span>
+
+      <button class="node start" style="left:24px;top:358px" type="button"><span class="node-title">대화 시작</span></button>
+
+      <button class="node" style="left:176px;top:40px" type="button" data-title="CLAUDE.md">
+        <span class="node-kind">매번 읽어요<span class="tag idle">A4 4쪽</span></span>
+        <span class="node-title">CLAUDE.md 지시문 3개</span>
+        <span class="node-meta">AI에게 늘 지키라고 적어 둔 규칙</span>
+      </button>
+      <button class="node" style="left:176px;top:184px" type="button" data-title="MEMORY.md">
+        <span class="node-kind">매번 읽어요<span class="tag warn">거의 다 참</span></span>
+        <span class="node-title">MEMORY.md 메모리 목차</span>
+        <span class="node-meta">200줄까지 읽혀요. 지금 154줄</span>
+      </button>
+      <button class="node" style="left:176px;top:328px" type="button" data-title="작업 설명서 목록">
+        <span class="node-kind">매번 읽어요<span class="tag idle">A4 8쪽</span></span>
+        <span class="node-title">작업 설명서 목록 167개</span>
+        <span class="node-meta">한 달 동안 31개 사용</span>
+      </button>
+      <button class="node" style="left:176px;top:472px" type="button" data-title="에이전트 목록">
+        <span class="node-kind">매번 읽어요<span class="tag idle">A4 3쪽</span></span>
+        <span class="node-title">에이전트 목록 22개</span>
+        <span class="node-meta">한 달 동안 6개 사용</span>
+      </button>
+      <button class="node ghost" style="left:176px;top:616px" type="button" data-title="안 쓰는 작업 설명서">
+        <span class="node-kind">목록에만 있어요<span class="tag idle">한 달 0번</span></span>
+        <span class="node-title">안 쓰는 작업 설명서 136개</span>
+      </button>
+
+      <button class="node" style="left:432px;top:346px;width:160px" type="button" data-title="내 요청">
+        <span class="node-kind">한 달</span>
+        <span class="node-title">내 요청 1,240번</span>
+      </button>
+
+      <button class="node" style="left:640px;top:184px;width:208px" type="button" aria-pressed="true" data-title="plan-review">
+        <span class="node-kind">작업 설명서<span class="tag ok">96번</span></span>
+        <span class="node-title">작업 설명서 사용</span>
+        <span class="node-meta">31종류 사용</span>
+      </button>
+      <button class="node" style="left:640px;top:328px;width:208px" type="button" data-title="에이전트 사용">
+        <span class="node-kind">에이전트<span class="tag ok">23번</span></span>
+        <span class="node-title">에이전트 사용</span>
+        <span class="node-meta">6종류 사용</span>
+      </button>
+      <button class="node" style="left:640px;top:472px;width:208px" type="button" data-title="자동 실행">
+        <span class="node-kind">하네스<span class="tag warn">느려요</span></span>
+        <span class="node-title">자동 실행 규칙 21개</span>
+        <span class="node-meta">한 번에 최대 2.8초 걸려요</span>
+      </button>
+
+      <button class="node" style="left:880px;top:184px;width:208px" type="button" data-title="파일 읽기와 명령 실행">
+        <span class="node-kind">도구<span class="tag idle">5,830번</span></span>
+        <span class="node-title">파일 읽기·명령 실행</span>
+      </button>
+      <button class="node" style="left:880px;top:328px;width:208px" type="button" data-title="연결된 서비스">
+        <span class="node-kind">외부 연결<span class="tag idle">13개 중 7개</span></span>
+        <span class="node-title">연결된 서비스</span>
+        <span class="node-meta">Jira, Figma, Slack 등</span>
+      </button>
+      <button class="node" style="left:880px;top:472px;width:208px" type="button" data-title="메모리">
+        <span class="node-kind">필요할 때 읽어요<span class="tag idle">145개 중 61개</span></span>
+        <span class="node-title">메모리 파일</span>
+        <span class="node-meta">84개는 한 달 동안 안 읽음</span>
+      </button>
+    </div>
+  </div>
+  <p class="meta">굵은 선은 자주 지나간 길, 점선은 "목록이나 목차를 보고 찾아간다"는 뜻이에요. 상자를 누르면 자세히 볼 수 있어요.</p>
+</div>
+
+<div class="overlay overlay--center" id="ov" role="presentation">
+  <div class="dialog big" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+    <div class="dlg-head">
+      <div>
+        <span class="badge badge-brand">작업 설명서</span>
+        <h2 id="dlg-t">plan-review</h2>
+        <div class="term">원래 이름: 스킬(Skill) · nestads-product-review 묶음에 들어 있어요</div>
+      </div>
+      <button class="btn btn-secondary icon-btn" id="close" type="button" aria-label="닫기">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <p class="dlg-sum">기획서를 다섯 가지 관점(정책, 읽기 쉬움, 개발 규칙, 실제로 만들 수 있는지, 자주 빠뜨리는 것)으로 나눠 검토하고, 결과를 하나로 합쳐 줘요.</p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" type="button">요약</button>
+      <button role="tab" aria-selected="false" type="button">연결 9</button>
+      <button role="tab" aria-selected="false" type="button">원문</button>
+      <button role="tab" aria-selected="false" type="button">시험 결과</button>
+      <button role="tab" aria-selected="false" type="button">바뀐 기록</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>14번</b><span>한 달 동안 사용</span></div>
+      <div class="stat"><b>10월 31일</b><span>마지막 사용</span></div>
+      <div class="stat"><b>612자</b><span>대화마다 미리 읽는 소개 글</span></div>
+      <div class="stat"><b>A4 약 6쪽</b><span>쓸 때마다 읽는 본문</span></div>
+    </div>
+
+    <div>
+      <div class="sec-title">어떻게 쓰였나요?</div>
+      <div class="split" role="img" aria-label="직접 불러서 9번, AI가 골라서 5번">
+        <i style="flex:9;background:var(--color-brand)"></i><i style="flex:5;background:var(--color-border-strong)"></i>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--color-brand)"></i>직접 불러서 9번</span>
+        <span><i style="background:var(--color-border-strong)"></i>AI가 알아서 골라서 5번</span>
+      </div>
+    </div>
+
+    <div class="notice">
+      <span class="badge badge-warning" style="justify-self:start">알아 두면 좋아요</span>
+      <p>본문이 길어서 쓸 때마다 A4 약 6쪽을 읽어요. 관점별 내용을 따로 떼어 두면, 필요한 관점만 읽게 돼서 더 빠르고 저렴해져요.</p>
+    </div>
+
+    <div>
+      <div class="sec-title">함께 쓰이는 것</div>
+      <div class="chips">
+        <button class="btn btn-sm" type="button">에이전트 5개</button>
+        <button class="btn btn-sm" type="button">메모리 1개</button>
+        <button class="btn btn-sm" type="button">참고 문서 25개</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">AI가 제때 골라 쓰나요?</div>
+      <p class="node-meta">"기획서 검토해 줘" 같은 요청 10번 중 9번을 맞게 골랐고, 상관없는 요청 10번에는 한 번도 끼어들지 않았어요. <span class="meta">10월 28일 시험</span></p>
+    </div>
+
+    <div class="dlg-foot">
+      <button class="btn btn-ghost btn-sm" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>이전 항목
+      </button>
+      <button class="btn btn-secondary btn-sm" type="button">지도에서 위치 보기</button>
+      <button class="btn btn-ghost btn-sm" type="button">다음 항목
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ov = document.getElementById('ov');
+  const root = document.documentElement;
+  document.getElementById('close').onclick = () => { ov.hidden = true; };
+  ov.addEventListener('click', e => { if (e.target === ov) ov.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.hidden = true; });
+  document.querySelectorAll('#map .node[data-title]').forEach(n => n.addEventListener('click', () => {
+    document.querySelectorAll('#map .node').forEach(x => x.removeAttribute('aria-pressed'));
+    n.setAttribute('aria-pressed', 'true');
+    document.getElementById('dlg-t').textContent = n.dataset.title;
+    ov.hidden = false;
+  }));
+  const t = document.getElementById('theme');
+  t.onclick = () => {
+    const dark = root.getAttribute('data-theme') === 'dark';
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    t.textContent = dark ? '어둡게 보기' : '밝게 보기';
+  };
+  root.setAttribute('data-theme', 'light');
+</script>
+</body>
+</html>
