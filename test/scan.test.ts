@@ -501,6 +501,23 @@ describe("진단 규칙: 깨끗한 항목은 걸리지 않는다 (음성 대조)
 });
 
 describe("진단 결과 형식", () => {
+  test("스냅샷 v2: 모든 진단에 분류와 고치는 방법, 그래프·누수·요약이 있고 요약은 진단 수와 맞는다", () => {
+    const cats = ["risk", "broken", "leak", "waste", "confusion"] as const;
+    for (const f of snap.findings) {
+      expect(cats).toContain(f.category);
+      expect(["mechanical", "claude", "manual"]).toContain(f.fixKind);
+    }
+    for (const k of ["entries", "nodes", "edges"] as const) expect(Array.isArray(snap.graph[k])).toBe(true);
+    expect(Object.keys(snap.leaks).sort()).toEqual(["brokenLinks", "unreachable", "unread", "unusedTokens"]);
+    expect(snap.summary.at).toBe(snap.generatedAt);
+    expect(snap.summary.totalTokens).toBe(snap.context.totalTokens);
+    expect(snap.summary.unusedTokens).toBe(snap.context.unusedTokens);
+    expect(snap.summary.leaks).toEqual(snap.leaks);
+    expect(Object.keys(snap.summary.byCategory).sort()).toEqual([...cats].sort());
+    for (const c of cats) expect(snap.summary.byCategory[c]).toBe(snap.findings.filter((f) => f.category === c).length);
+    expect(cats.reduce((n, c) => n + snap.summary.byCategory[c], 0)).toBe(snap.findings.length);
+    expect(snap.previous).toBeUndefined();
+  });
   test("심각도 순으로 정렬, id 는 유일, 문구는 해요체이고 대시가 없다", () => {
     const order = { high: 0, medium: 1, low: 2 } as const;
     for (let i = 1; i < snap.findings.length; i++) expect(order[snap.findings[i - 1].severity]).toBeLessThanOrEqual(order[snap.findings[i].severity]);
@@ -561,6 +578,7 @@ describe("캐시와 예외", () => {
     const b = await scan(fx.home, { now: fx.now });
     for (const s of [a, b]) {
       s.generatedAt = "";
+      s.summary.at = "";
       s.stats.durationMs = 0;
     }
     expect(b).toEqual(a);

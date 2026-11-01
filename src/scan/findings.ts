@@ -1,5 +1,5 @@
 // 진단 규칙 (design.md 6절). 문구는 비전문가용 해요체, 단정 대신 "~일 수 있어요".
-import type { Finding, Severity } from "../shared/types";
+import type { Category, Finding, Severity } from "../shared/types";
 import type { Entry, PluginEntry } from "./inventory";
 import { MEMORY_INDEX_LINES } from "./inventory";
 import { countLines, jaccard, normalizeLine, truncate, wordSet } from "./text";
@@ -20,6 +20,17 @@ export const SIMILAR_JACCARD = 0.5;
 
 const SEV_ORDER: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
+// 임시 분류표 (design.md 7절). Task 3 이 규칙 표로 바꾼다. 고치는 방법은 모두 manual
+const CATEGORY_OF: Record<string, Category> = {
+  "memory-index-truncated": "broken",
+  "failing-hook": "broken",
+  "broken-link": "leak",
+  "orphan-memory": "leak",
+  "duplicate-name": "confusion",
+  "similar-description": "confusion",
+  "missing-description": "confusion",
+};
+
 export const a4 = (tokens: number): string => (tokens / 1500).toFixed(1);
 
 const sourceKey = (e: Entry): string => `${e.item.source.type}:${e.item.source.plugin ?? e.item.source.project ?? ""}`;
@@ -34,13 +45,15 @@ const where = (e: Entry): string => {
 };
 const kindWord = (k: string): string => (k === "agent" ? "에이전트" : k === "command" ? "명령" : "작업 설명서");
 
+export const categoryOf = (rule: string): Category => CATEGORY_OF[rule] ?? "waste";
+
 export function diagnose(ctx: DiagnoseCtx): Finding[] {
   const out: Finding[] = [];
   const counters = new Map<string, number>();
-  const push = (rule: string, severity: Severity, f: Omit<Finding, "id" | "rule" | "severity" | "steps" | "prompt" | "command">) => {
+  const push = (rule: string, severity: Severity, f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "gain" | "severity" | "steps" | "prompt" | "command">) => {
     const n = (counters.get(rule) ?? 0) + 1;
     counters.set(rule, n);
-    out.push({ id: `${rule}:${n}`, rule, severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
+    out.push({ id: `${rule}:${n}`, rule, category: categoryOf(rule), fixKind: "manual", severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
   };
   const { entries } = ctx;
   const byId = new Map(entries.map((e) => [e.item.id, e] as const));

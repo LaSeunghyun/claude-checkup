@@ -1,6 +1,8 @@
 // 개발용 가짜 점검 결과를 만든다: bun run src/ui/dev/make-fixture.ts
 // 실제 ~/.claude 는 읽지 않는다. 같은 입력이면 항상 같은 결과가 나오게 난수는 고정 씨앗을 쓴다.
 import type { Finding, Group, Item, ItemKind, Snapshot, Source } from "../../shared/types";
+import { categoryOf } from "../../scan/findings";
+import { summaryOf } from "../../scan";
 
 // ---- 고정 난수 ----
 let seed = 20261101;
@@ -405,10 +407,10 @@ for (const n of ["feedback_component_reuse", "project_admin_list_fit", "referenc
 
 // ================= 진단 =================
 const findings: Finding[] = [];
-const F = (f: Omit<Finding, "id" | "steps" | "prompt"> & Partial<Pick<Finding, "steps" | "prompt">> & { key: string }) => {
+const F = (f: Omit<Finding, "id" | "category" | "fixKind" | "steps" | "prompt"> & Partial<Pick<Finding, "category" | "fixKind" | "steps" | "prompt">> & { key: string }) => {
   const { key, ...rest } = f;
-  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다
-  findings.push({ id: `f-${key}`, steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
+  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다. 분류는 스캐너 임시 표, 고치는 방법은 manual (Task 3 이 바꾼다)
+  findings.push({ id: `f-${key}`, category: categoryOf(rest.rule), fixKind: "manual", steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
 };
 const fid = (kind: ItemKind, s: Source, name: string) => idOf(kind, s, name);
 
@@ -576,7 +578,14 @@ const parts = [
   part("hooks", "자동 실행 규칙이 넣는 글", ["hook"]),
 ];
 
+const zeroLeaks = { unreachable: 0, brokenLinks: 0, unread: 0, unusedTokens: 0 };
 const mcpCalls = sum(items.filter((i) => i.kind === "mcp"), (i) => i.usage.count30);
+const context: Snapshot["context"] = {
+  budgetTokens: 200000,
+  totalTokens: parts.reduce((n, p) => n + p.tokens, 0),
+  unusedTokens: parts.reduce((n, p) => n + p.unusedTokens, 0),
+  parts,
+};
 const snapshot: Snapshot = {
   version: 1,
   generatedAt: NOW.toISOString(),
@@ -590,15 +599,13 @@ const snapshot: Snapshot = {
     bytesScanned: 612_000_000,
     durationMs: 18420,
   },
-  context: {
-    budgetTokens: 200000,
-    totalTokens: parts.reduce((n, p) => n + p.tokens, 0),
-    unusedTokens: parts.reduce((n, p) => n + p.unusedTokens, 0),
-    parts,
-  },
+  context,
   items,
   groups,
   findings,
+  graph: { entries: [], nodes: [], edges: [] }, // Task 3 이후 채운다
+  leaks: zeroLeaks,
+  summary: summaryOf({ generatedAt: NOW.toISOString(), context, findings, leaks: zeroLeaks }),
   warnings: ["C:/lash/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."],
 };
 

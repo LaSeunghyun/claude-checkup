@@ -1,6 +1,6 @@
 // 스캐너 진입점: scan(home, opts) => Snapshot
 import { join } from "node:path";
-import type { ContextPart, Group, Item, ItemKind, Progress, Snapshot, Source } from "../shared/types";
+import type { Category, ContextPart, Group, HistorySummary, Item, ItemKind, Leaks, Progress, Snapshot, Source } from "../shared/types";
 import { diagnose } from "./findings";
 import { todoFor } from "./todo";
 import { claudeRelKey, redactSecrets, slash } from "./fsutil";
@@ -199,6 +199,23 @@ function buildGroups(items: Item[]): Group[] {
   );
 }
 
+const zeroLeaks = (): Leaks => ({ unreachable: 0, brokenLinks: 0, unread: 0, unusedTokens: 0 });
+
+const CATEGORIES: Category[] = ["risk", "broken", "leak", "waste", "confusion"];
+
+// 전후 비교와 기록에 쓰는 요약. Task 4 가 이 함수를 옮긴다
+export function summaryOf(s: Pick<Snapshot, "generatedAt" | "context" | "findings" | "leaks">): HistorySummary {
+  const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
+  for (const f of s.findings) byCategory[f.category]++;
+  return {
+    at: s.generatedAt,
+    totalTokens: s.context.totalTokens,
+    unusedTokens: s.context.unusedTokens,
+    leaks: { ...s.leaks },
+    byCategory,
+  };
+}
+
 export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot> {
   const t0 = Date.now();
   const now = opts.now ?? new Date();
@@ -253,9 +270,12 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
         a.name.localeCompare(b.name),
     );
 
+  const generatedAt = new Date().toISOString();
+  const context = buildContext(inv.entries, ux);
+  const leaks = zeroLeaks(); // Task 3 이 채운다
   const snap: Snapshot = {
     version: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     home: "~",
     window: { from: new Date(`${days[0]}T00:00:00`).toISOString(), to: now.toISOString(), days: 30 },
     stats: {
@@ -266,10 +286,13 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
       bytesScanned: tr.bytes,
       durationMs: Date.now() - t0,
     },
-    context: buildContext(inv.entries, ux),
+    context,
     items,
     groups: buildGroups(items),
     findings,
+    graph: { entries: [], nodes: [], edges: [] }, // Task 3 이 채운다
+    leaks,
+    summary: summaryOf({ generatedAt, context, findings, leaks }),
     warnings,
   };
   emit({ phase: "done", filesDone: tr.files.length, filesTotal: tr.files.length });

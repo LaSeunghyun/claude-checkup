@@ -60,9 +60,25 @@ export interface Item {
 
 export type Severity = "high" | "medium" | "low";
 
+// 위험, 고장, 연결 누수, 낭비, 헷갈림 (design.md 7절)
+export type Category = "risk" | "broken" | "leak" | "waste" | "confusion";
+// mechanical = 앱이 바로 함, claude = `claude -p` 로 함, manual = 사용자가 함
+export type FixKind = "mechanical" | "claude" | "manual";
+
+// 고치면 얻는 것. tokens 는 대화마다 줄어드는 토큰, count 는 줄어드는 개수
+export interface Gain {
+  text: string;
+  upTo: boolean; // true 면 "최대"
+  tokens?: number;
+  count?: number;
+}
+
 export interface Finding {
   id: string;
-  rule: string; // design.md 6절 규칙 이름
+  rule: string; // design.md 7절 규칙 이름
+  category: Category;
+  fixKind: FixKind;
+  gain?: Gain;
   severity: Severity;
   title: string; // 무엇이
   why: string; // 왜 중요한지
@@ -89,6 +105,43 @@ export interface ContextPart {
   unusedTokens: number; // 30일 0회 항목 몫
 }
 
+// 메모리 연결 그래프 (design.md 6절). 노드 = 읽히는 md 파일
+export interface MdNode {
+  id: string;
+  depth: number | null; // 진입점에서 몇 걸음인지. null = 길 없음
+  folder: string;
+  read30: number;
+}
+
+export interface MdEdge {
+  from: string;
+  to: string;
+  kind: "index" | "link" | "import" | "mention";
+}
+
+export interface MdGraph {
+  entries: string[]; // 진입점 노드 id
+  nodes: MdNode[];
+  edges: MdEdge[];
+}
+
+// 연결 누수 합계
+export interface Leaks {
+  unreachable: number; // 길 없음
+  brokenLinks: number; // 끊긴 링크
+  unread: number; // 길은 있는데 안 읽힘
+  unusedTokens: number; // 대화마다 미리 채워지는데 안 쓴 토큰
+}
+
+// 전후 비교와 기록에 쓰는 요약 한 건
+export interface HistorySummary {
+  at: string; // ISO
+  totalTokens: number;
+  unusedTokens: number;
+  leaks: Leaks;
+  byCategory: Record<Category, number>;
+}
+
 export interface Snapshot {
   version: 1;
   generatedAt: string;
@@ -111,6 +164,10 @@ export interface Snapshot {
   items: Item[];
   groups: Group[];
   findings: Finding[];
+  graph: MdGraph;
+  leaks: Leaks;
+  summary: HistorySummary;
+  previous?: HistorySummary; // 지난 점검 요약 (있을 때만)
   warnings: string[]; // 읽기 실패 등, 사용자에게 보일 말
 }
 
@@ -124,6 +181,60 @@ export interface Progress {
 export interface Settings {
   telemetry: "on" | "off" | null; // null = 아직 묻지 않음
   installId?: string; // telemetry=on 일 때만 있다
+  claudeFix?: "agreed"; // Claude 고치기 안내에 동의함
+}
+
+// 고치기 요청. itemIds 가 있으면 그 항목만
+export interface FixRequest {
+  findingId: string;
+  itemIds?: string[];
+}
+
+export interface DiffLine {
+  op: "+" | "-" | " ";
+  text: string;
+}
+
+export interface FileChange {
+  rel: string; // HOME/.claude 기준 경로
+  kind: "modified" | "added" | "moved" | "plugin-off";
+  diff: DiffLine[];
+  note?: string;
+}
+
+// 기대 효과 한 줄. 전후 값은 화면에 나갈 글
+export interface Effect {
+  label: string;
+  before: string;
+  after: string;
+  tone: "good" | "cost" | "neutral";
+}
+
+export interface FixPreview {
+  changes: FileChange[];
+  effects: Effect[];
+  turnsOff: { name: string; uses30: number; detail: string }[]; // 꺼지는 것과 최근 30일 사용
+  // Claude 가 "보관 후보"로만 표시한 파일. 고치지 않고, 적용 때 사용자가 체크한 것만 보관 폴더로 옮긴다
+  candidates: { itemId: string; rel: string; reason: string }[];
+  usage?: { inputTokens: number; outputTokens: number; costUsd?: number };
+  warnings: string[];
+  blocked?: string; // 만들 수 없을 때 이유
+}
+
+export interface FixJob {
+  id: string;
+  request: FixRequest;
+  kind: "mechanical" | "claude";
+  status: "running" | "ready" | "failed" | "applied" | "undone";
+  message?: string;
+  preview?: FixPreview;
+  backupId?: string;
+  result?: { before: HistorySummary; after: HistorySummary };
+}
+
+export interface ClaudeEnv {
+  available: boolean;
+  reason?: string; // 못 쓸 때 이유
 }
 
 // 익명 통계 한 건. design.md 8-1절 밖의 필드를 넣지 않는다.
@@ -131,7 +242,7 @@ export interface TelemetryEvent {
   installId: string;
   appVersion: string;
   os: "windows" | "macos" | "linux" | "other";
-  event: "launch" | "scan_done" | "view_open";
+  event: "launch" | "scan_done" | "view_open" | "fix_preview" | "fix_apply" | "fix_undo";
   view?: "home" | "group" | "item" | "findings" | "settings";
   scanSeconds?: "0-9" | "10-59" | "60-299" | "300+";
   itemCount?: "0-49" | "50-99" | "100-199" | "200-499" | "500+";
@@ -147,3 +258,9 @@ export interface TelemetryEvent {
 // POST /api/reveal            -> 204          body: { id }  그 항목 파일을 탐색기에서 연다
 // GET  /api/telemetry-preview  -> TelemetryEvent (보낼 내용 그대로)
 // POST /api/telemetry          -> 204          body: { event, view? }  서버가 나머지 필드를 채워 보낸다
+// GET  /api/fix/env            -> ClaudeEnv
+// POST /api/fix/preview        -> FixJob     body: FixRequest
+// GET  /api/fix/job?id=        -> FixJob
+// POST /api/fix/apply          -> FixJob     body: { jobId: string; archive?: string[] }  archive = 보관 후보 중 사용자가 체크한 itemId
+// POST /api/fix/undo           -> { ok: boolean; message: string }  body: { backupId: string }
+// GET  /api/fix/backups        -> 백업 요약 목록

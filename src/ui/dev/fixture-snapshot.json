@@ -12862,6 +12862,8 @@
  "findings": [
   {
    "id": "f-memidx-truncated",
+   "category": "broken",
+   "fixKind": "manual",
    "steps": [
     "오래된 항목을 지우거나, 한 줄 설명을 더 짧게 줄여 보세요. 자주 안 쓰는 메모리는 목차에서 빼고 파일만 남겨 두면 줄 수가 줄어요."
    ],
@@ -12878,6 +12880,8 @@
   },
   {
    "id": "f-failing-hook",
+   "category": "broken",
+   "fixKind": "manual",
    "steps": [
     "아래 규칙을 직접 한 번 실행해서 오류 메시지를 확인해 보세요. 경로가 바뀌었거나 프로그램이 설치돼 있지 않은 경우가 많아요."
    ],
@@ -12894,6 +12898,8 @@
   },
   {
    "id": "f-unused-plugin-front",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요."
    ],
@@ -12930,6 +12936,8 @@
   },
   {
    "id": "f-unused-plugin-vercel",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "Vercel을 안 쓰는 PC라면 플러그인을 꺼 두세요."
    ],
@@ -12963,6 +12971,8 @@
   },
   {
    "id": "f-unused-plugin-slack",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "Slack 연결이 필요 없다면 플러그인을 꺼 두세요."
    ],
@@ -12987,6 +12997,8 @@
   },
   {
    "id": "f-slow-hook",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "규칙 안에서 하는 일을 줄이거나, 결과를 저장해 두고 다시 쓰도록 바꿔 보세요."
    ],
@@ -13003,6 +13015,8 @@
   },
   {
    "id": "f-dup-rule",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요."
    ],
@@ -13020,6 +13034,8 @@
   },
   {
    "id": "f-broken-link",
+   "category": "leak",
+   "fixKind": "manual",
    "steps": [
     "없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요."
    ],
@@ -13036,6 +13052,8 @@
   },
   {
    "id": "f-missing-desc",
+   "category": "confusion",
+   "fixKind": "manual",
    "steps": [
     "파일 맨 위의 description 에 언제 쓰는 에이전트인지 한 문장으로 적어 주세요."
    ],
@@ -13052,6 +13070,8 @@
   },
   {
    "id": "f-dup-name",
+   "category": "confusion",
+   "fixKind": "manual",
    "steps": [
     "쓰지 않는 쪽 플러그인을 끄거나 이름을 바꿔 주세요."
    ],
@@ -13069,6 +13089,8 @@
   },
   {
    "id": "f-unused-items",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "자주 안 쓰는 것은 플러그인 설정에서 빼 보세요. 꼭 지울 필요는 없어요."
    ],
@@ -13088,6 +13110,8 @@
   },
   {
    "id": "f-unused-items-backend",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요."
    ],
@@ -13110,6 +13134,8 @@
   },
   {
    "id": "f-long-skill",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "자주 쓰는 부분만 본문에 두고, 나머지는 따로 파일로 떼어 필요할 때만 읽게 해 보세요."
    ],
@@ -13126,6 +13152,8 @@
   },
   {
    "id": "f-near-limit",
+   "category": "waste",
+   "fixKind": "manual",
    "steps": [
     "오래된 메모리를 정리하거나 한 줄 설명을 줄여 두세요."
    ],
@@ -13142,6 +13170,8 @@
   },
   {
    "id": "f-orphan",
+   "category": "leak",
+   "fixKind": "manual",
    "steps": [
     "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요."
    ],
@@ -13159,6 +13189,8 @@
   },
   {
    "id": "f-similar",
+   "category": "confusion",
+   "fixKind": "manual",
    "steps": [
     "각각 언제 쓰는지 서로 다른 단어로 구분해서 적어 주세요."
    ],
@@ -13175,6 +13207,35 @@
    "evidence": "설명에 쓴 단어 중 62퍼센트가 같아요."
   }
  ],
+ "graph": {
+  "entries": [],
+  "nodes": [],
+  "edges": []
+ },
+ "leaks": {
+  "unreachable": 0,
+  "brokenLinks": 0,
+  "unread": 0,
+  "unusedTokens": 0
+ },
+ "summary": {
+  "at": "2026-11-01T06:20:00.000Z",
+  "totalTokens": 31180,
+  "unusedTokens": 5377,
+  "leaks": {
+   "unreachable": 0,
+   "brokenLinks": 0,
+   "unread": 0,
+   "unusedTokens": 0
+  },
+  "byCategory": {
+   "risk": 0,
+   "broken": 2,
+   "leak": 2,
+   "waste": 9,
+   "confusion": 3
+  }
+ },
  "warnings": [
   "C:/lash/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."
  ]
