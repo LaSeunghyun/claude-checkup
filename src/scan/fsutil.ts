@@ -31,9 +31,24 @@ export function secretLineNumbers(text: string): number[] {
 // 미리 보기는 바뀐 홈을 실제 파일을 건드리지 않고 다시 분석한다. 분석이 읽는 파일은 모두 아래 함수를 거치므로
 // overlay 가 켜져 있는 동안은 덮어쓴 파일은 새 내용, null 은 없는 것(폴더면 그 아래 전부), 새 파일은 목록에 나타난다.
 
-// 키는 overlayKey(abs). 값이 글이면 그 내용의 파일, null 이면 없는 파일이나 폴더
+// 키는 overlayKey(abs). 값이 글이면 그 내용의 파일, null 이면 없는 파일이나 폴더.
+// names 는 키 -> 원래 대소문자 절대경로. 새 파일 이름을 목록에 원래대로 보이려고 쓴다(없으면 키의 소문자 이름). overlayFrom 이 둘 다 채운다
+// 키는 realpath 가 아니라 resolve 기준이라 8.3 짧은 이름(WISEBI~1)과 긴 이름은 다른 키다. 분석과 같은 home 문자열에서 만든 경로를 쓴다
 export interface Overlay {
   files: Map<string, string | null>;
+  names?: Map<string, string>;
+}
+
+// 절대경로 -> 내용(null = 없음) 목록으로 overlay 를 만든다
+export function overlayFrom(entries: Iterable<[string, string | null]>): Overlay {
+  const files = new Map<string, string | null>();
+  const names = new Map<string, string>();
+  for (const [abs, v] of entries) {
+    const k = overlayKey(abs);
+    files.set(k, v);
+    names.set(k, abs);
+  }
+  return { files, names };
 }
 
 // 목록 한 칸. 실제 Dirent 도 이 모양이다
@@ -70,16 +85,20 @@ function prepare(ov: Overlay): Active {
       nulls = true;
       continue;
     }
-    // 위로 올라가며 부모 폴더마다 자식 하나씩 (이름은 키의 마지막 조각. Windows 면 소문자다)
+    // 위로 올라가며 부모 폴더마다 자식 하나씩. 이름은 원래 경로의 같은 자리 조각(조각 수가 다르면 키의 조각)
+    const raw = ov.names?.get(k);
+    const orig = raw ? slash(resolve(raw)).split("/") : [];
+    const parts = k.split("/");
+    const nameAt = (j: number) => (orig.length === parts.length ? orig[j] : parts[j]);
     let child = k;
     let dir = false;
     for (let i = child.lastIndexOf("/"); i > 0; i = child.lastIndexOf("/")) {
       const parent = child.slice(0, i);
-      const name = child.slice(i + 1);
-      if (!name) break;
+      if (!child.slice(i + 1)) break;
+      const name = nameAt(parent.split("/").length);
       const m = dirs.get(parent) ?? dirs.set(parent, new Map()).get(parent)!;
-      const prev = m.get(name);
-      if (!prev || (dir && !prev.isDirectory())) m.set(name, fake(name, dir));
+      const prev = m.get(nameKey(name));
+      if (!prev || (dir && !prev.isDirectory())) m.set(nameKey(name), fake(name, dir));
       child = parent;
       dir = true;
     }
@@ -88,6 +107,7 @@ function prepare(ov: Overlay): Active {
 }
 
 // 분석은 동기라 겹치지 않는다. 비동기 함수를 넘기면 덮어쓰기가 중간에 풀리므로 막는다
+// 안에서 또 부르면 바깥 overlay 를 대신한다(겹쳐 쌓지 않는다). 끝나면 바깥 것으로 돌아간다
 export function withOverlay<T>(ov: Overlay, fn: () => T): T {
   const prev = active;
   active = prepare(ov);

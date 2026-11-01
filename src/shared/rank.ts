@@ -13,10 +13,11 @@ export function gainValue(g?: Gain): number {
   return g.count ?? 0;
 }
 
-// 후보는 고치기가 되는 진단(mechanical, claude)만. 같은 분류·같은 효과면 진단 순서(심각도 순) 그대로
+// 후보는 고치기가 되는 진단(mechanical, claude)만. 같은 분류·같은 효과면 진단 순서(심각도 순) 그대로.
+// 실패가 1~2번뿐인 훅(심각도 high 아님)은 일시적일 수 있어 할 일에서 뺀다. 전체 진단에는 남는다
 export function topTodos(findings: Finding[], n = 3): Finding[] {
   return findings
-    .filter((f) => ORDER.includes(f.category) && f.fixKind !== "manual")
+    .filter((f) => ORDER.includes(f.category) && f.fixKind !== "manual" && !(f.rule === "failing-hook" && f.severity !== "high"))
     .sort((a, b) => ORDER.indexOf(a.category) - ORDER.indexOf(b.category) || gainValue(b.gain) - gainValue(a.gain))
     .slice(0, n);
 }

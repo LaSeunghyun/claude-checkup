@@ -3,11 +3,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { analyze, collectUsage, scan, type ScanCore } from "../src/scan";
-import { exists, isDir, isFile, listDir, overlayKey, readText, withOverlay, type Overlay } from "../src/scan/fsutil";
+import { exists, isDir, isFile, listDir, overlayFrom, overlayKey, readText, withOverlay, type Overlay } from "../src/scan/fsutil";
 import { estimateGains } from "../src/scan/gain";
 import { topTodos } from "../src/shared/rank";
 import type { Category, Finding, FixKind, Gain, Snapshot } from "../src/shared/types";
-import { buildFixtureHome, type Fixture } from "./fixtures/build";
+import { buildFixtureHome, buildHomeFrom, hookLine, type Fixture } from "./fixtures/build";
 
 let dir: string;
 let fx: Fixture;
@@ -15,7 +15,7 @@ let core: ScanCore;
 let base: Snapshot;
 let gained: Snapshot;
 
-const ov = (files: Record<string, string | null>): Overlay => ({ files: new Map(Object.entries(files).map(([abs, v]) => [overlayKey(abs), v])) });
+const ov = (files: Record<string, string | null>): Overlay => overlayFrom(Object.entries(files));
 const settingsPath = () => join(fx.home, ".claude", "settings.json");
 const gamma = () => join(fx.home, ".claude", "projects", "C--fx-gamma", "memory");
 
@@ -69,6 +69,22 @@ describe("가상 덮어쓰기 (fsutil)", () => {
     expect(readText(join(g, "gamma-two.md"))).not.toBeNull();
     expect(existsSync(join(g, "new-note.md"))).toBe(false);
     expect(listDir(g).map((d) => d.name)).not.toContain("new-note.md");
+  });
+  test("새 파일과 새 폴더 이름은 원래 대소문자 그대로", () => {
+    const g = gamma();
+    withOverlay(ov({ [join(g, "Foo-Bar.md")]: "새 메모\n", [join(g, "New-Dir", "Inner-File.md")]: "안쪽\n" }), () => {
+      const names = listDir(g).map((d) => d.name);
+      expect(names).toContain("Foo-Bar.md");
+      expect(names).toContain("New-Dir");
+      expect(listDir(join(g, "new-dir")).map((d) => d.name)).toEqual(["Inner-File.md"]);
+      expect(names.filter((n) => n.toLowerCase() === "foo-bar.md")).toHaveLength(1);
+    });
+    // 이름 표 없이 키만 주면 키의 이름을 쓴다 (Windows 면 소문자)
+    withOverlay({ files: new Map([[overlayKey(join(g, "Only-Key.md")), "x\n"]]) }, () => {
+      expect(listDir(g).map((d) => d.name.toLowerCase())).toContain("only-key.md");
+    });
+    const after = analyze(fx.home, core, ov({ [join(g, "Foo-Bar.md")]: "# 새 메모\n" }));
+    expect(after.items.find((i) => i.id === "memory:project:fx-gamma:foo-bar.md")?.name).toBe("Foo-Bar.md");
   });
   test("null 폴더는 그 아래 전부 없음", () => {
     const skill = join(fx.home, ".claude", "skills", "unused-one");
@@ -258,6 +274,34 @@ describe("할 일 순서", () => {
     expect([...idx].sort((a, b) => a - b)).toEqual(idx);
     expect(top.every((f) => f.fixKind !== "manual")).toBe(true);
     expect(top[0].rule).toBe("memory-index-truncated"); // 고장 중 고치기가 되는 유일한 것
+  });
+  test("실패가 1~2번인 훅은 할 일에서 빠지고 진단에는 남는다, 3번이면 할 일에 들어간다", async () => {
+    const d = mkdtempSync(join(tmpdir(), "cc-failhook-"));
+    try {
+      const pdir = join(d, ".claude", "plugins", "cache", "mkt", "pp", "1.0.0");
+      const twice = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/twice.mjs"';
+      const thrice = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/thrice.mjs"';
+      const at = (k: number) => new Date(fx.now.getTime() - 60_000 * (k + 1)).toISOString();
+      const fail = (cmd: string, k: number) => hookLine(at(k), "Stop", cmd, 10, 1, "hook_non_blocking_error");
+      const home = buildHomeFrom(d, {
+        ".claude/settings.json": JSON.stringify({ enabledPlugins: { "pp@mkt": true } }),
+        ".claude/plugins/installed_plugins.json": JSON.stringify({ version: 2, plugins: { "pp@mkt": [{ scope: "user", installPath: pdir, version: "1.0.0" }] } }),
+        ".claude/plugins/cache/mkt/pp/1.0.0/.claude-plugin/plugin.json": JSON.stringify({ name: "pp" }),
+        ".claude/plugins/cache/mkt/pp/1.0.0/hooks/hooks.json": JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: twice }, { type: "command", command: thrice }] }] } }),
+        ".claude/projects/C--mini/s.jsonl": [fail(twice, 1), fail(twice, 2), fail(thrice, 3), fail(thrice, 4), fail(thrice, 5)].join("\n") + "\n",
+      });
+      const s = await scan(home, { now: fx.now, cache: false });
+      const hooks = s.findings.filter((f) => f.rule === "failing-hook");
+      const two = hooks.find((f) => f.items[0].includes("twice"))!;
+      const three = hooks.find((f) => f.items[0].includes("thrice"))!;
+      expect(two).toMatchObject({ severity: "medium", fixKind: "mechanical" });
+      expect(three).toMatchObject({ severity: "high", fixKind: "mechanical" });
+      const top = topTodos(s.findings, 20);
+      expect(top).not.toContain(two);
+      expect(top).toContain(three);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
   });
   test("작은 홈: .claude 가 없으면 할 일도 효과도 없다", async () => {
     const d = mkdtempSync(join(tmpdir(), "cc-empty-"));
