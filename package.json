@@ -1,0 +1,25 @@
+{
+  "name": "claude-checkup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/server/main.ts",
+    "dev:ui": "bun run src/ui/dev-server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "build:win": "bun build src/server/main.ts --compile --target=bun-windows-x64 --outfile dist/claude-checkup.exe",
+    "build:mac": "bun build src/server/main.ts --compile --target=bun-darwin-arm64 --outfile dist/claude-checkup-mac",
+    "build:linux": "bun build src/server/main.ts --compile --target=bun-linux-x64 --outfile dist/claude-checkup-linux"
+  },
+  "dependencies": {
+    "react": "19",
+    "react-dom": "19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "bun-types": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
