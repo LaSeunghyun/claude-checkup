@@ -66,14 +66,6 @@ async function runProcess(cmd: string[], args: string[], opts: { cwd?: string; t
     env: process.env,
     ...(process.platform === "win32" ? {} : { detached: true }),
   } as any) as any;
-  if (opts.input !== undefined) {
-    try {
-      proc.stdin.write(opts.input);
-      await proc.stdin.end();
-    } catch {
-      /* 일찍 끝난 프로세스 */
-    }
-  }
   let out = "";
   const drain = async (stream: ReadableStream<Uint8Array>, keep: boolean) => {
     const dec = new TextDecoder();
@@ -84,6 +76,18 @@ async function runProcess(cmd: string[], args: string[], opts: { cwd?: string; t
     }
   };
   const reading = Promise.all([drain(proc.stdout, true), drain(proc.stderr, false)]);
+  // 요청문 쓰기도 시간 제한 안에서 한다. 자식이 입력을 안 읽거나 큰 출력을 먼저 쏟아도 멈추지 않는다
+  const writing =
+    opts.input === undefined
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            proc.stdin.write(opts.input);
+            await proc.stdin.end();
+          } catch {
+            /* 일찍 끝난 프로세스 */
+          }
+        })();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = opts.timeoutMs ? new Promise<"timeout">((res) => (timer = setTimeout(() => res("timeout"), opts.timeoutMs))) : new Promise<never>(() => {});
   try {
@@ -93,7 +97,7 @@ async function runProcess(cmd: string[], args: string[], opts: { cwd?: string; t
       await Promise.race([proc.exited, sleep(2000)]);
       return { code: 124, stdout: out, timedOut: true };
     }
-    await Promise.race([reading, sleep(3000)]); // 출력은 끝난 뒤 잠깐만 더 기다린다
+    await Promise.race([Promise.all([writing, reading]), sleep(3000)]); // 출력은 끝난 뒤 잠깐만 더 기다린다
     return { code: r, stdout: out, timedOut: false };
   } finally {
     if (timer) clearTimeout(timer);
@@ -365,7 +369,7 @@ export async function planWithClaude(home: string, opts: PlanOpts): Promise<Plan
     return { overlay: overlayFrom(writes.map((w): [string, string | null] => [w.abs, w.content])), changes, writes, moves: [], pluginKeys: [], hashes, usage, warnings };
   } finally {
     await removeDir(work);
-    rmSync(settingsFile, { force: true });
+    await removeDir(settingsFile);
     await cleanProjectsDir(id);
   }
 }

@@ -217,6 +217,23 @@ describe("planWithClaude", () => {
     expect(alive).toBe(false);
   });
 
+  test("표준 입력을 안 읽고 출력만 쏟는 자식에 큰 요청문을 써도 시간 제한 안에 돌아온다", async () => {
+    const pidFile = join(dir, "gc2.pid");
+    setPlan({ ignoreStdin: true, flood: 300000, grandchildPidFile: pidFile, sleepMs: 30000, edits: [] });
+    const t0 = Date.now();
+    await expect(run({ timeoutMs: 1500, prompt: "가".repeat(200000) })).rejects.toThrow(/시간/);
+    expect(Date.now() - t0).toBeLessThan(8000);
+    await new Promise((r) => setTimeout(r, 500));
+    let alive = true;
+    try {
+      process.kill(Number(readFileSync(pidFile, "utf8")), 0);
+    } catch {
+      alive = false;
+    }
+    expect(alive).toBe(false);
+    expect(leftovers()).toEqual([]);
+  }, 20000);
+
   test("만든 계획은 applyPlanned 로 적용된다", async () => {
     setPlan({ edits: [{ rel: "memory/a.md", content: "hello\nworld\n" }] });
     const p = await run();

@@ -9,8 +9,9 @@ if (argv[0] === "--version") {
   console.log("0.0.0-fake");
   process.exit(0);
 }
-const stdin = await Bun.stdin.text();
 const plan = JSON.parse(readFileSync(process.env.CHECKUP_FAKE_PLAN!, "utf8"));
+if (plan.flood) process.stdout.write("x".repeat(plan.flood)); // 표준 입력을 읽기 전에 많이 쓰는 자식
+const stdin = plan.ignoreStdin ? "" : await Bun.stdin.text();
 if (plan.argvLog) writeFileSync(plan.argvLog, JSON.stringify({ argv, cwd: process.cwd(), stdin }));
 if (plan.grandchildPidFile) {
   // 표준 출력을 붙든 손자 프로세스
