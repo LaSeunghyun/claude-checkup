@@ -4,7 +4,6 @@ import { getSettings, postViewOpen } from "./api";
 import { Header } from "./components/Header";
 import { UiContext, type Ui } from "./context";
 import { useRoute, useSnapshot, useTheme } from "./hooks";
-import { ChevronLeft } from "./icons";
 import { buildModel } from "./model";
 import { Checkup } from "./screens/Checkup";
 import { Consent } from "./screens/Consent";
@@ -12,28 +11,13 @@ import { Findings } from "./screens/Findings";
 import { ToolsModal } from "./screens/InfoModal";
 import { FixSheet } from "./screens/FixSheet";
 import { ItemModal } from "./screens/ItemModal";
+import { Links } from "./screens/Links";
 import { SectionView } from "./screens/SectionView";
 import { SettingsModal } from "./screens/SettingsModal";
 import { BootState, CrashState, EmptyState, ErrorState, ScanningState } from "./screens/States";
 import { Usage } from "./screens/Usage";
 
 type Overlay = null | "settings" | "tools";
-
-// 임시: 연결 지도 화면이 생기기 전까지 자리만 지킨다
-function LinksSoon({ onBack }: { onBack: () => void }) {
-  return (
-    <section className="card" aria-label="연결 지도">
-      <h1 className="here">연결 지도는 곧 열려요</h1>
-      <p className="sub">md 파일이 서로 어떻게 이어지는지 보여 주는 화면을 준비하고 있어요.</p>
-      <div className="acts">
-        <button className="btn btn-primary" type="button" onClick={onBack}>
-          <ChevronLeft size={20} />
-          검진 결과
-        </button>
-      </div>
-    </section>
-  );
-}
 
 // 화면을 그리다 던져진 오류를 잡아 빈 화면 대신 안내를 보여 준다
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -144,12 +128,7 @@ function Shell() {  const { theme, toggle } = useTheme();
         <UiContext.Provider value={ui}>
           {route.name === "home" && <Checkup {...common} onFix={openFix} />}
           {route.name === "usage" && <Usage {...common} />}
-          {route.name === "links" && (
-            <>
-              <Header left={<h1 className="top-title">연결 지도</h1>} theme={theme} onToggleTheme={toggle} onSettings={common.onSettings} onRescan={rescan} />
-              <LinksSoon onBack={() => go({ name: "home" })} />
-            </>
-          )}
+          {route.name === "links" && <Links {...common} />}
           {route.name === "section" && <SectionView sectionKey={route.key} mode={route.mode} {...common} />}
           {route.name === "findings" && <Findings severity={route.severity} {...common} />}
           {topItem && <ItemModal id={topItem} canBack={stack.length > 1} onBack={backItem} onClose={closeItem} />}

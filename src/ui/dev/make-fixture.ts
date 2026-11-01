@@ -1,6 +1,6 @@
 // 개발용 가짜 점검 결과를 만든다: bun run src/ui/dev/make-fixture.ts
 // 실제 ~/.claude 는 읽지 않는다. 같은 입력이면 항상 같은 결과가 나오게 난수는 고정 씨앗을 쓴다.
-import type { Finding, Group, Item, ItemKind, Snapshot, Source } from "../../shared/types";
+import type { Finding, Group, Item, ItemKind, MdEdge, Snapshot, Source } from "../../shared/types";
 import { categoryOf, type RuleId } from "../../scan/findings";
 import { summaryOf } from "../../scan";
 import { a4 } from "../format";
@@ -182,6 +182,32 @@ for (const [name, summary, c] of [
     kind: "memory", name, source: project("web-app"), path: `~/.claude/projects/C--work-web-app/memory/${name}.md`,
     summary, count30: c, chars: rint(500, 2400), outline: ["개요", "규칙"],
   });
+}
+// 연결 지도용: 다른 메모리를 거쳐야 닿는 파일(2단계), 목차가 없는 폴더(길 없음)
+for (const [name, summary, c] of [
+  ["reference_code_index_details", "코드 색인의 세부 항목 모음", 1],
+  ["project_test_hub_log", "단일 TC 관리 시스템 회차별 기록", 0],
+  ["rework_causes_archive", "예전 되돌리기 사례 원문", 0],
+] as [string, string, number][]) {
+  add({ kind: "memory", name, source: project("notes"), path: `${MEM_ROOT}/${name}.md`, summary, count30: c, chars: rint(700, 2600), outline: ["개요", "기록"] });
+}
+for (const [name, summary, c] of [
+  ["old_api_notes", "예전 API 서버 작업 메모", 0],
+  ["old_deploy_steps", "예전 배포 절차", 0],
+  ["old_review_log", "예전 코드 리뷰 기록", 1],
+  ["old_glossary", "예전 용어 정리", 0],
+] as [string, string, number][]) {
+  add({
+    kind: "memory", name, source: project("legacy-api"), path: `~/.claude/projects/C--work-legacy-api/memory/${name}.md`,
+    summary, count30: c, chars: rint(500, 2200), outline: ["개요"],
+  });
+}
+for (const [name, summary] of [
+  ["scratch_ideas", "정리 안 된 아이디어 메모"],
+  ["travel_checklist", "출장 준비 목록"],
+  ["tool_shortcuts", "자주 쓰는 단축키 정리"],
+] as [string, string][]) {
+  add({ kind: "memory", name, source: USER, path: `~/.claude/memory/${name}.md`, summary, count30: 0, chars: rint(300, 1400), outline: ["메모"] });
 }
 add({
   kind: "memory-index", name: "MEMORY.md", source: project("notes"), path: `${MEM_ROOT}/MEMORY.md`,
@@ -403,6 +429,14 @@ for (const [name] of memRows) {
   link(MI, idOf("memory", project("notes"), name));
 }
 link(idOf("memory", project("notes"), "rework_causes"), idOf("memory", project("notes"), "explain_before_agree"));
+link(idOf("memory", project("notes"), "reference_code_index"), idOf("memory", project("notes"), "reference_code_index_details"));
+link(idOf("memory", project("notes"), "project_test_hub"), idOf("memory", project("notes"), "project_test_hub_log"));
+link(idOf("memory", project("notes"), "rework_causes"), idOf("memory", project("notes"), "rework_causes_archive"));
+// 이름만 언급된 길 (점선)
+const mentionPairs = new Set([`${idOf("memory", project("notes"), "reference_feature_doc_index")}|${idOf("memory", project("notes"), "project_test_hub_log")}`]);
+link(idOf("memory", project("notes"), "reference_feature_doc_index"), idOf("memory", project("notes"), "project_test_hub_log"));
+// 지시문이 @경로 로 불러오는 길
+const importPairs = new Set([`${idOf("instruction", USER, "CLAUDE.md")}|${idOf("memory", project("notes"), "style_preferences")}`]);
 const MI2 = idOf("memory-index", project("web-app"), "MEMORY.md");
 for (const n of ["component_reuse", "project_list_layout", "reference_test_setup"]) link(MI2, idOf("memory", project("web-app"), n));
 
@@ -529,6 +563,22 @@ F({
   evidence: "MEMORY.md와 다른 메모리 어디에도 연결이 없어요.",
 });
 F({
+  key: "orphan-legacy", rule: "unreachable-md", severity: "medium",
+  title: "legacy-api 메모리 폴더에 AI가 찾아갈 길이 없는 파일 4개",
+  why: "이 폴더에는 MEMORY.md 가 없어서 AI가 파일이 있는 줄 몰라요.",
+  fix: "MEMORY.md 를 만들어 계속 쓸 파일을 한 줄씩 적어 주세요. 필요 없는 파일은 보관해 주세요.",
+  items: ["old_api_notes", "old_deploy_steps", "old_review_log", "old_glossary"].map((n) => fid("memory", project("legacy-api"), n)),
+  evidence: "목차 파일이 없는 폴더, 메모리 파일 4개 중 4개: old_api_notes, old_deploy_steps, old_review_log 외",
+});
+F({
+  key: "orphan-global", rule: "unreachable-md", severity: "medium",
+  title: "~/.claude/memory 폴더에 AI가 찾아갈 길이 없는 파일 3개",
+  why: "이 폴더는 Claude Code 가 메모리로 자동으로 읽는 곳이 아니라서, 여기에 MEMORY.md 를 만들어도 AI에게 닿지 않아요.",
+  fix: "전역 CLAUDE.md 에 그 파일의 경로를 적거나, 프로젝트 메모리 폴더로 옮겨 MEMORY.md 에 적어 주세요.",
+  items: ["scratch_ideas", "travel_checklist", "tool_shortcuts"].map((n) => fid("memory", USER, n)),
+  evidence: "목차 파일이 없는 폴더, 메모리 파일 3개 중 3개: scratch_ideas, travel_checklist, tool_shortcuts",
+});
+F({
   key: "similar", rule: "similar-description", severity: "low",
   title: "figma-design-to-code와 figma-generate-design 설명이 비슷해요",
   why: "설명이 비슷하면 AI가 어느 쪽을 골라야 할지 헷갈려요.",
@@ -582,6 +632,12 @@ for (const f of findings) {
   else if (f.rule === "unread-md") f.gain = { text: `안 읽히던 파일 ${n}개를 정리해요`, upTo: false, count: n };
   else if (f.rule === "duplicate-rule") f.gain = { text: "최대 4개의 겹치는 줄이 한 곳으로 모여요", upTo: true, count: 4 };
   else if (f.rule === "missing-description" || f.rule === "similar-description") f.gain = { text: "최대 1개를 AI가 더 알맞게 고르게 돼요", upTo: true, count: 1 };
+}
+
+const globalOrphan = findings.find((f) => f.id === "f-orphan-global");
+if (globalOrphan) {
+  globalOrphan.fixKind = "manual";
+  delete globalOrphan.gain;
 }
 
 for (const f of findings) {
@@ -652,7 +708,7 @@ const graph: Snapshot["graph"] = {
   entries,
   nodes: mdItems.map((i) => ({ id: i.id, depth: depth.get(i.id) ?? null, folder: (i.path ?? "").replace(/\/[^/]*$/, ""), read30: i.usage.count30 })),
   edges: mdItems.flatMap((i) =>
-    i.links.out.filter((to) => mdIds.has(to)).map((to) => ({ from: i.id, to, kind: (i.kind === "memory-index" ? "index" : "link") as "index" | "link" })),
+    i.links.out.filter((to) => mdIds.has(to)).map((to) => ({ from: i.id, to, kind: (i.kind === "memory-index" ? "index" : importPairs.has(`${i.id}|${to}`) ? "import" : mentionPairs.has(`${i.id}|${to}`) ? "mention" : "link") as MdEdge["kind"] })),
   ),
 };
 const leaks: Snapshot["leaks"] = {

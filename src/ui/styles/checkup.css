@@ -561,3 +561,69 @@
 @media (max-width: 640px) { .vs { grid-template-columns: minmax(0, 1fr); } }
 .done .sec-title { margin-bottom: var(--space-1); }
 .stack { display: grid; gap: var(--space-2); }
+
+/* ------------------------------------------------------------------
+   11. 연결 지도: 칸 도식, 누수 목록
+   ------------------------------------------------------------------ */
+.map-wrap { max-width: 100%; overflow-x: auto; background: var(--color-canvas); border-radius: var(--radius-xl); }
+.map { position: relative; }
+.map svg { position: absolute; inset: 0; }
+.ln { fill: none; stroke: var(--color-border-control); }
+.ln.ref { stroke-dasharray: 6 5; }
+.ln-sample { display: inline-block; width: var(--space-5); height: 0; border-top: 2px solid var(--color-border-control); vertical-align: middle; margin-right: var(--space-2); }
+.ln-sample.is-dashed { border-top-style: dashed; }
+.col-h { position: absolute; white-space: nowrap; font-size: var(--font-size-body-small); font-weight: 600; color: var(--color-text-subtle); }
+.col-h.lost { color: var(--color-danger); }
+.col-empty { position: absolute; font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+.box {
+  position: absolute;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+.box:hover { background: var(--color-brand-tint); }
+.box b { color: var(--color-text-strong); font-size: var(--font-size-body-small); line-height: 1.4; overflow-wrap: anywhere; }
+.box span { color: var(--color-text-subtle); font-size: var(--font-size-body-small); line-height: 1.4; overflow-wrap: anywhere; }
+.box.lost { background: var(--color-danger-tint); border: 1px dashed var(--color-danger); }
+.box.lost b { color: var(--color-danger); }
+.box.sel { border: 1px solid var(--color-brand); background: var(--color-brand-tint); }
+.box.lost.sel { border: 1px solid var(--color-danger); }
+.box .meter { display: block; height: var(--space-2); border-radius: var(--radius-pill); background: var(--color-canvas); overflow: hidden; }
+.box .meter i { display: block; height: 100%; background: var(--color-brand); }
+.file-list { display: grid; gap: var(--space-3); }
+.file-list-title { margin: 0; overflow-wrap: anywhere; }
+.leak-card { display: grid; gap: var(--space-3); }
+.leak-card .section-title { margin: 0; }
+.leaks { display: grid; gap: var(--space-2); }
+.leak { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-4); align-items: center; background: var(--color-canvas); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+.leak-text { display: grid; gap: var(--space-1); min-width: 0; }
+.leak b { color: var(--color-text-strong); font-size: var(--font-size-body-small); }
+.leak p { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+.leak .acts { justify-content: flex-end; }
+.leak-list { grid-column: 1 / -1; display: grid; gap: var(--space-3); }
+.leak-item { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--color-surface); border-radius: var(--radius-lg); }
+.leak-item-title { color: var(--color-text-strong); font-weight: 600; overflow-wrap: anywhere; }
+.route { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-size-body-small); color: var(--color-text-subtle); }
+.route .btn { white-space: normal; text-align: left; }
+@media (max-width: 640px) {
+  .leak { grid-template-columns: minmax(0, 1fr); }
+  .leak .acts { justify-content: flex-start; }
+}
+.route-step { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.edge-group { display: grid; gap: var(--space-1); margin-bottom: var(--space-3); }
+.card .leak-item .btn-secondary { background: var(--color-canvas); }
+.card .leak-item .btn-secondary:hover { background: var(--color-brand-tint); }
+.leak-item .chip-kind { white-space: nowrap; }
+@media (max-width: 640px) {
+  .leak { padding: var(--space-3); }
+  .leak-item { padding: var(--space-3); }
+}
