@@ -52,7 +52,7 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
           <div className="crumb">
             <button className="btn btn-secondary btn-sm" type="button" onClick={() => go({ name: "home" })}>
               <ChevronLeft size={20} />
-              전체 지도
+              검진 결과
             </button>
             <h1 className="here">
               진단 결과 {num(ruleCount)}가지 <span className="meta">문제 {num(all.length)}건</span>

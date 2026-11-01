@@ -94,6 +94,8 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
 export type SeverityFilter = "all" | Severity;
 export type Route =
   | { name: "home" }
+  | { name: "usage" }
+  | { name: "links" }
   | { name: "section"; key: SectionKey; mode: ViewMode }
   | { name: "findings"; severity: SeverityFilter };
 
@@ -105,6 +107,8 @@ function parseRoute(hash: string): Route {
     const mode = q.get("mode");
     return { name: "section", key: parts[1], mode: mode === "usage" || mode === "idle" ? mode : "groups" };
   }
+  if (parts[0] === "usage") return { name: "usage" };
+  if (parts[0] === "links") return { name: "links" };
   if (parts[0] === "findings") {
     const s = q.get("sev");
     return { name: "findings", severity: s === "high" || s === "medium" || s === "low" ? s : "all" };
@@ -114,6 +118,8 @@ function parseRoute(hash: string): Route {
 
 function routeHash(r: Route): string {
   if (r.name === "section") return `#/section/${r.key}${r.mode === "groups" ? "" : `?mode=${r.mode}`}`;
+  if (r.name === "usage") return "#/usage";
+  if (r.name === "links") return "#/links";
   if (r.name === "findings") return `#/findings${r.severity === "all" ? "" : `?sev=${r.severity}`}`;
   return "#/";
 }

@@ -22,8 +22,8 @@
  },
  "context": {
   "budgetTokens": 200000,
-  "totalTokens": 31180,
-  "unusedTokens": 5377,
+  "totalTokens": 31156,
+  "unusedTokens": 5361,
   "parts": [
    {
     "key": "instructions",
@@ -40,14 +40,14 @@
    {
     "key": "skills",
     "label": "작업 설명서·명령 목록",
-    "tokens": 5962,
+    "tokens": 5954,
     "unusedTokens": 4124
    },
    {
     "key": "agents",
     "label": "에이전트 목록",
-    "tokens": 1978,
-    "unusedTokens": 1253
+    "tokens": 1962,
+    "unusedTokens": 1237
    },
    {
     "key": "hooks",
@@ -126,9 +126,9 @@
    },
    "links": {
     "out": [
-     "skill:user::work-kb-qa",
+     "skill:user::fact-lookup",
      "agent:user::code-reviewer",
-     "memory:project:lash:feedback_preferences"
+     "memory:project:notes:style_preferences"
     ],
     "in": []
    },
@@ -137,14 +137,14 @@
    ]
   },
   {
-   "id": "instruction:project:nestads-frontend:claude.md",
+   "id": "instruction:project:web-app:claude.md",
    "kind": "instruction",
    "name": "CLAUDE.md",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
-   "path": "C:/lash/nestads-frontend/CLAUDE.md",
+   "path": "C:/work/web-app/CLAUDE.md",
    "summary": "프론트엔드 레포의 작업 규칙. 스택, 폴더 구조, 컴포넌트 재사용 원칙을 적어 뒀어요.",
    "outline": [
     "스택",
@@ -214,7 +214,7 @@
     "type": "project",
     "project": "claude-checkup"
    },
-   "path": "C:/lash/claude-checkup/AGENTS.md",
+   "path": "C:/work/claude-checkup/AGENTS.md",
    "summary": "Hearth 디자인 가이드. 색과 간격은 토큰만 쓰고, 글자 크기와 터치 영역 하한을 지켜요.",
    "outline": [
     "디자인 규칙",
@@ -275,14 +275,14 @@
    "findings": []
   },
   {
-   "id": "memory:project:lash:user_profile",
+   "id": "memory:project:notes:profile_basics",
    "kind": "memory",
-   "name": "user_profile",
+   "name": "profile_basics",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/user_profile.md",
+   "path": "~/.claude/projects/C--work/memory/profile_basics.md",
    "summary": "역할, 기술 스택, 도메인 전문성, 언어 선호",
    "outline": [
     "개요",
@@ -337,25 +337,25 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:feedback_preferences",
+   "id": "memory:project:notes:style_preferences",
    "kind": "memory",
-   "name": "feedback_preferences",
+   "name": "style_preferences",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_preferences.md",
+   "path": "~/.claude/projects/C--work/memory/style_preferences.md",
    "summary": "영어 혼입 금지, 스킬 생성 금지 같은 개인 선호",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 3190,
@@ -406,7 +406,7 @@
     "out": [],
     "in": [
      "instruction:user::claude.md",
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": [
@@ -414,19 +414,19 @@
    ]
   },
   {
-   "id": "memory:project:lash:feedback_collaboration_handoff",
+   "id": "memory:project:notes:handoff_rules",
    "kind": "memory",
-   "name": "feedback_collaboration_handoff",
+   "name": "handoff_rules",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_collaboration_handoff.md",
+   "path": "~/.claude/projects/C--work/memory/handoff_rules.md",
    "summary": "Claude와 사용자 작업 구분, 대화형 스텝 처리",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 617,
@@ -476,25 +476,25 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:feedback_rework_causes",
+   "id": "memory:project:notes:rework_causes",
    "kind": "memory",
-   "name": "feedback_rework_causes",
+   "name": "rework_causes",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_rework_causes.md",
+   "path": "~/.claude/projects/C--work/memory/rework_causes.md",
    "summary": "되돌리기를 만든 원인 14종과 방지 규칙",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 3378,
@@ -543,28 +543,28 @@
    },
    "links": {
     "out": [
-     "memory:project:lash:feedback_explain_before_agree"
+     "memory:project:notes:explain_before_agree"
     ],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:feedback_wiki_width",
+   "id": "memory:project:notes:wiki_layout",
    "kind": "memory",
-   "name": "feedback_wiki_width",
+   "name": "wiki_layout",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_wiki_width.md",
+   "path": "~/.claude/projects/C--work/memory/wiki_layout.md",
    "summary": "Confluence 위키는 항상 페이지 폭 wide로",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 3156,
@@ -614,25 +614,25 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:feedback_code_analysis_speed",
+   "id": "memory:project:notes:code_lookup_tips",
    "kind": "memory",
-   "name": "feedback_code_analysis_speed",
+   "name": "code_lookup_tips",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_code_analysis_speed.md",
+   "path": "~/.claude/projects/C--work/memory/code_lookup_tips.md",
    "summary": "코드 동작 질문은 레포 최신화 후 SDK 3종 병렬 조회",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 3126,
@@ -682,25 +682,25 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:feedback_stock_data_routing",
+   "id": "memory:project:notes:data_source_routing",
    "kind": "memory",
-   "name": "feedback_stock_data_routing",
+   "name": "data_source_routing",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_stock_data_routing.md",
+   "path": "~/.claude/projects/C--work/memory/data_source_routing.md",
    "summary": "종목 질문은 Supabase에서 오늘자 데이터를 먼저 본다",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 1695,
@@ -749,25 +749,27 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
-   "findings": []
+   "findings": [
+    "f-unread"
+   ]
   },
   {
-   "id": "memory:project:lash:feedback_explain_before_agree",
+   "id": "memory:project:notes:explain_before_agree",
    "kind": "memory",
-   "name": "feedback_explain_before_agree",
+   "name": "explain_before_agree",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/feedback_explain_before_agree.md",
+   "path": "~/.claude/projects/C--work/memory/explain_before_agree.md",
    "summary": "의문이 제기되면 근거를 먼저 설명하고 동의한다",
    "outline": [
-    "규칙",
-    "이유",
-    "적용 시점"
+    "개요",
+    "현재 상태",
+    "다음 단계"
    ],
    "size": {
     "chars": 1305,
@@ -817,21 +819,21 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md",
-     "memory:project:lash:feedback_rework_causes"
+     "memory-index:project:notes:memory.md",
+     "memory:project:notes:rework_causes"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:project_work_kb",
+   "id": "memory:project:notes:project_knowledge_cache",
    "kind": "memory",
-   "name": "project_work_kb",
+   "name": "project_knowledge_cache",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_work_kb.md",
+   "path": "~/.claude/projects/C--work/memory/project_knowledge_cache.md",
    "summary": "Jira, Confluence, Slack 로컬 캐시 구조와 갱신 절차",
    "outline": [
     "개요",
@@ -886,22 +888,22 @@
    "links": {
     "out": [],
     "in": [
-     "skill:plugin:nestads-product-review:plan-review",
-     "skill:plugin:nestads-product-review:kb-harvest",
-     "memory-index:project:lash:memory.md"
+     "skill:plugin:doc-review:plan-review",
+     "skill:plugin:doc-review:kb-harvest",
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:project_actc_studio",
+   "id": "memory:project:notes:project_test_hub",
    "kind": "memory",
-   "name": "project_actc_studio",
+   "name": "project_test_hub",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_actc_studio.md",
+   "path": "~/.claude/projects/C--work/memory/project_test_hub.md",
    "summary": "단일 TC 관리 시스템 착수 기록",
    "outline": [
     "개요",
@@ -956,20 +958,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:project_iphone_duo_policy",
+   "id": "memory:project:notes:project_foldable_policy",
    "kind": "memory",
-   "name": "project_iphone_duo_policy",
+   "name": "project_foldable_policy",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_iphone_duo_policy.md",
+   "path": "~/.claude/projects/C--work/memory/project_foldable_policy.md",
    "summary": "iPhone Duo 화면 대응 정책 논의안",
    "outline": [
     "개요",
@@ -1023,20 +1025,22 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
-   "findings": []
+   "findings": [
+    "f-unread"
+   ]
   },
   {
-   "id": "memory:project:lash:project_wp11011_delivery_priority",
+   "id": "memory:project:notes:project_delivery_priority",
    "kind": "memory",
-   "name": "project_wp11011_delivery_priority",
+   "name": "project_delivery_priority",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_wp11011_delivery_priority.md",
+   "path": "~/.claude/projects/C--work/memory/project_delivery_priority.md",
    "summary": "매체 광고 유형별 송출 우선순위 결정 4건",
    "outline": [
     "개요",
@@ -1091,20 +1095,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:project_krxdata_workflow",
+   "id": "memory:project:notes:project_stock_scoring",
    "kind": "memory",
-   "name": "project_krxdata_workflow",
+   "name": "project_stock_scoring",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_krxdata_workflow.md",
+   "path": "~/.claude/projects/C--work/memory/project_stock_scoring.md",
    "summary": "주식 점수 산정 워크플로우와 공시 조회법",
    "outline": [
     "개요",
@@ -1158,20 +1162,22 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
-   "findings": []
+   "findings": [
+    "f-unread"
+   ]
   },
   {
-   "id": "memory:project:lash:project_krxdata_validation_method",
+   "id": "memory:project:notes:project_backtest_checks",
    "kind": "memory",
-   "name": "project_krxdata_validation_method",
+   "name": "project_backtest_checks",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/project_krxdata_validation_method.md",
+   "path": "~/.claude/projects/C--work/memory/project_backtest_checks.md",
    "summary": "백테스트 판정 전 필수 검증 6단",
    "outline": [
     "개요",
@@ -1231,14 +1237,14 @@
    ]
   },
   {
-   "id": "memory:project:lash:reference_sdk_code_index",
+   "id": "memory:project:notes:reference_code_index",
    "kind": "memory",
-   "name": "reference_sdk_code_index",
+   "name": "reference_code_index",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/reference_sdk_code_index.md",
+   "path": "~/.claude/projects/C--work/memory/reference_code_index.md",
    "summary": "SDK 동작 질문 시 먼저 볼 코드 색인",
    "outline": [
     "개요",
@@ -1293,20 +1299,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:reference_nestads_feature_doc_index",
+   "id": "memory:project:notes:reference_feature_doc_index",
    "kind": "memory",
-   "name": "reference_nestads_feature_doc_index",
+   "name": "reference_feature_doc_index",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/reference_nestads_feature_doc_index.md",
+   "path": "~/.claude/projects/C--work/memory/reference_feature_doc_index.md",
    "summary": "기능별 문서 위키 목록",
    "outline": [
     "개요",
@@ -1361,20 +1367,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:lash:reference_token_rotation",
+   "id": "memory:project:notes:reference_key_rotation",
    "kind": "memory",
-   "name": "reference_token_rotation",
+   "name": "reference_key_rotation",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/reference_token_rotation.md",
+   "path": "~/.claude/projects/C--work/memory/reference_key_rotation.md",
    "summary": "토큰 교체 절차 메모",
    "outline": [
     "개요",
@@ -1430,18 +1436,19 @@
     "in": []
    },
    "findings": [
-    "f-orphan"
+    "f-orphan",
+    "f-secret"
    ]
   },
   {
-   "id": "memory:project:lash:reference_mcp_windows_path",
+   "id": "memory:project:notes:reference_service_path_fix",
    "kind": "memory",
-   "name": "reference_mcp_windows_path",
+   "name": "reference_service_path_fix",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/reference_mcp_windows_path.md",
+   "path": "~/.claude/projects/C--work/memory/reference_service_path_fix.md",
    "summary": "stdio MCP 가 Windows 경로에서 끊길 때 대처",
    "outline": [
     "개요",
@@ -1496,20 +1503,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:lash:memory.md"
+     "memory-index:project:notes:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:nestads-frontend:feedback_component_reuse",
+   "id": "memory:project:web-app:component_reuse",
    "kind": "memory",
-   "name": "feedback_component_reuse",
+   "name": "component_reuse",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
-   "path": "~/.claude/projects/C--lash-nestads-frontend/memory/feedback_component_reuse.md",
+   "path": "~/.claude/projects/C--work-web-app/memory/component_reuse.md",
    "summary": "DS 컴포넌트 재사용을 먼저 확인한다",
    "outline": [
     "개요",
@@ -1563,20 +1570,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:nestads-frontend:memory.md"
+     "memory-index:project:web-app:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:nestads-frontend:project_admin_list_fit",
+   "id": "memory:project:web-app:project_list_layout",
    "kind": "memory",
-   "name": "project_admin_list_fit",
+   "name": "project_list_layout",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
-   "path": "~/.claude/projects/C--lash-nestads-frontend/memory/project_admin_list_fit.md",
+   "path": "~/.claude/projects/C--work-web-app/memory/project_list_layout.md",
    "summary": "어드민 목록 화면 폭 맞춤 규칙",
    "outline": [
     "개요",
@@ -1629,20 +1636,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:nestads-frontend:memory.md"
+     "memory-index:project:web-app:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory:project:nestads-frontend:reference_playwright_setup",
+   "id": "memory:project:web-app:reference_test_setup",
    "kind": "memory",
-   "name": "reference_playwright_setup",
+   "name": "reference_test_setup",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
-   "path": "~/.claude/projects/C--lash-nestads-frontend/memory/reference_playwright_setup.md",
+   "path": "~/.claude/projects/C--work-web-app/memory/reference_test_setup.md",
    "summary": "테스트 환경 준비 절차",
    "outline": [
     "개요",
@@ -1695,20 +1702,20 @@
    "links": {
     "out": [],
     "in": [
-     "memory-index:project:nestads-frontend:memory.md"
+     "memory-index:project:web-app:memory.md"
     ]
    },
    "findings": []
   },
   {
-   "id": "memory-index:project:lash:memory.md",
+   "id": "memory-index:project:notes:memory.md",
    "kind": "memory-index",
    "name": "MEMORY.md",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
-   "path": "~/.claude/projects/C--lash/memory/MEMORY.md",
+   "path": "~/.claude/projects/C--work/memory/MEMORY.md",
    "summary": "메모리 파일 목차. 한 줄에 파일 하나와 한 줄 설명이 있어요.",
    "outline": [
     "항상 참조",
@@ -1766,22 +1773,22 @@
    },
    "links": {
     "out": [
-     "memory:project:lash:user_profile",
-     "memory:project:lash:feedback_preferences",
-     "memory:project:lash:feedback_collaboration_handoff",
-     "memory:project:lash:feedback_rework_causes",
-     "memory:project:lash:feedback_wiki_width",
-     "memory:project:lash:feedback_code_analysis_speed",
-     "memory:project:lash:feedback_stock_data_routing",
-     "memory:project:lash:feedback_explain_before_agree",
-     "memory:project:lash:project_work_kb",
-     "memory:project:lash:project_actc_studio",
-     "memory:project:lash:project_iphone_duo_policy",
-     "memory:project:lash:project_wp11011_delivery_priority",
-     "memory:project:lash:project_krxdata_workflow",
-     "memory:project:lash:reference_sdk_code_index",
-     "memory:project:lash:reference_nestads_feature_doc_index",
-     "memory:project:lash:reference_mcp_windows_path"
+     "memory:project:notes:profile_basics",
+     "memory:project:notes:style_preferences",
+     "memory:project:notes:handoff_rules",
+     "memory:project:notes:rework_causes",
+     "memory:project:notes:wiki_layout",
+     "memory:project:notes:code_lookup_tips",
+     "memory:project:notes:data_source_routing",
+     "memory:project:notes:explain_before_agree",
+     "memory:project:notes:project_knowledge_cache",
+     "memory:project:notes:project_test_hub",
+     "memory:project:notes:project_foldable_policy",
+     "memory:project:notes:project_delivery_priority",
+     "memory:project:notes:project_stock_scoring",
+     "memory:project:notes:reference_code_index",
+     "memory:project:notes:reference_feature_doc_index",
+     "memory:project:notes:reference_service_path_fix"
     ],
     "in": []
    },
@@ -1791,14 +1798,14 @@
    ]
   },
   {
-   "id": "memory-index:project:nestads-frontend:memory.md",
+   "id": "memory-index:project:web-app:memory.md",
    "kind": "memory-index",
    "name": "MEMORY.md",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
-   "path": "~/.claude/projects/C--lash-nestads-frontend/memory/MEMORY.md",
+   "path": "~/.claude/projects/C--work-web-app/memory/MEMORY.md",
    "summary": "프론트엔드 레포 메모리 목차.",
    "outline": [
     "규칙",
@@ -1854,9 +1861,9 @@
    },
    "links": {
     "out": [
-     "memory:project:nestads-frontend:feedback_component_reuse",
-     "memory:project:nestads-frontend:project_admin_list_fit",
-     "memory:project:nestads-frontend:reference_playwright_setup"
+     "memory:project:web-app:component_reuse",
+     "memory:project:web-app:project_list_layout",
+     "memory:project:web-app:reference_test_setup"
     ],
     "in": []
    },
@@ -2013,14 +2020,14 @@
    "findings": []
   },
   {
-   "id": "skill:user::nestads-update",
+   "id": "skill:user::repo-sync",
    "kind": "skill",
-   "name": "nestads-update",
+   "name": "repo-sync",
    "source": {
     "type": "user"
    },
-   "path": "~/.claude/skills/nestads-update/SKILL.md",
-   "summary": "NestAds 레포 6개를 한 번에 최신으로 맞춰요",
+   "path": "~/.claude/skills/repo-sync/SKILL.md",
+   "summary": "레포 6개를 한 번에 최신으로 맞춰요",
    "outline": [
     "언제 쓰나요",
     "진행 순서",
@@ -2033,8 +2040,8 @@
     "tokens": 715
    },
    "alwaysLoaded": {
-    "chars": 226,
-    "tokens": 73,
+    "chars": 213,
+    "tokens": 70,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -2087,14 +2094,14 @@
    "findings": []
   },
   {
-   "id": "skill:user::work-kb-qa",
+   "id": "skill:user::fact-lookup",
    "kind": "skill",
-   "name": "work-kb-qa",
+   "name": "fact-lookup",
    "source": {
     "type": "user"
    },
-   "path": "~/.claude/skills/work-kb-qa/SKILL.md",
-   "summary": "NestAds의 단일 사실과 현재 상태 질문에 원문 근거로 답해요",
+   "path": "~/.claude/skills/fact-lookup/SKILL.md",
+   "summary": "서비스의 단일 사실과 현재 상태 질문에 원문 근거로 답해요",
    "outline": [
     "언제 쓰나요",
     "진행 순서",
@@ -2107,7 +2114,7 @@
     "tokens": 644
    },
    "alwaysLoaded": {
-    "chars": 230,
+    "chars": 227,
     "tokens": 77,
     "what": "목록 한 줄(이름과 설명)"
    },
@@ -2156,7 +2163,7 @@
    },
    "links": {
     "out": [
-     "mcp:user::wkb"
+     "mcp:user::kb-cache"
     ],
     "in": [
      "instruction:user::claude.md"
@@ -2924,14 +2931,14 @@
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product-review:plan-review",
+   "id": "skill:plugin:doc-review:plan-review",
    "kind": "skill",
    "name": "plan-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/plan-review/SKILL.md",
+   "path": "~/.claude/plugins/cache/doc-review/plan-review/SKILL.md",
    "summary": "기획서를 다섯 가지 관점(정책, 읽기 쉬움, 개발 규칙, 실제로 만들 수 있는지, 자주 빠뜨리는 것)으로 나눠 검토하고 결과를 하나로 합쳐요",
    "outline": [
     "언제 쓰나요",
@@ -2994,28 +3001,28 @@
    },
    "links": {
     "out": [
-     "agent:plugin:nestads-product-review:plan-lens-policy",
-     "agent:plugin:nestads-product-review:plan-lens-readability",
-     "agent:plugin:nestads-product-review:plan-lens-dev-policy",
-     "agent:plugin:nestads-product-review:plan-lens-impl-fitness",
-     "agent:plugin:nestads-product-review:plan-lens-kb",
-     "memory:project:lash:project_work_kb"
+     "agent:plugin:doc-review:plan-lens-policy",
+     "agent:plugin:doc-review:plan-lens-readability",
+     "agent:plugin:doc-review:plan-lens-dev-policy",
+     "agent:plugin:doc-review:plan-lens-impl-fitness",
+     "agent:plugin:doc-review:plan-lens-kb",
+     "memory:project:notes:project_knowledge_cache"
     ],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review"
+     "plugin:plugin:doc-review:doc-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product-review:plan-diff",
+   "id": "skill:plugin:doc-review:plan-diff",
    "kind": "skill",
    "name": "plan-diff",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/plan-diff/SKILL.md",
+   "path": "~/.claude/plugins/cache/doc-review/plan-diff/SKILL.md",
    "summary": "기획서 두 판의 달라진 점을 정리해요",
    "outline": [
     "언제 쓰나요",
@@ -3079,20 +3086,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review"
+     "plugin:plugin:doc-review:doc-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product-review:kb-harvest",
+   "id": "skill:plugin:doc-review:kb-harvest",
    "kind": "skill",
    "name": "kb-harvest",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/kb-harvest/SKILL.md",
+   "path": "~/.claude/plugins/cache/doc-review/kb-harvest/SKILL.md",
    "summary": "개발 리뷰 질문을 모아 누락 패턴 지식으로 정리해요",
    "outline": [
     "언제 쓰나요",
@@ -3155,23 +3162,23 @@
    },
    "links": {
     "out": [
-     "memory:project:lash:project_work_kb"
+     "memory:project:notes:project_knowledge_cache"
     ],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review"
+     "plugin:plugin:doc-review:doc-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product-review:review-feedback",
+   "id": "skill:plugin:doc-review:review-feedback",
    "kind": "skill",
    "name": "review-feedback",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/review-feedback/SKILL.md",
+   "path": "~/.claude/plugins/cache/doc-review/review-feedback/SKILL.md",
    "summary": "리뷰 지적 중 오탐을 패턴으로 쌓아요",
    "outline": [
     "언제 쓰나요",
@@ -3235,20 +3242,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review"
+     "plugin:plugin:doc-review:doc-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-product-review:plan-lens-policy",
+   "id": "agent:plugin:doc-review:plan-lens-policy",
    "kind": "agent",
    "name": "plan-lens-policy",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/agents/plan-lens-policy.md",
+   "path": "~/.claude/plugins/cache/doc-review/agents/plan-lens-policy.md",
    "summary": "정책 문서와 비교해 기획서의 충돌과 누락을 찾아요",
    "outline": [
     "역할",
@@ -3307,21 +3314,21 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review",
-     "skill:plugin:nestads-product-review:plan-review"
+     "plugin:plugin:doc-review:doc-review",
+     "skill:plugin:doc-review:plan-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-product-review:plan-lens-readability",
+   "id": "agent:plugin:doc-review:plan-lens-readability",
    "kind": "agent",
    "name": "plan-lens-readability",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/agents/plan-lens-readability.md",
+   "path": "~/.claude/plugins/cache/doc-review/agents/plan-lens-readability.md",
    "summary": "기획서 문장이 읽기 쉬운지 점검해요",
    "outline": [
     "역할",
@@ -3380,21 +3387,21 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review",
-     "skill:plugin:nestads-product-review:plan-review"
+     "plugin:plugin:doc-review:doc-review",
+     "skill:plugin:doc-review:plan-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-product-review:plan-lens-dev-policy",
+   "id": "agent:plugin:doc-review:plan-lens-dev-policy",
    "kind": "agent",
    "name": "plan-lens-dev-policy",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/agents/plan-lens-dev-policy.md",
+   "path": "~/.claude/plugins/cache/doc-review/agents/plan-lens-dev-policy.md",
    "summary": "개발 쪽에 이미 있는 규칙을 기획서가 고려했는지 봐요",
    "outline": [
     "역할",
@@ -3453,21 +3460,21 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review",
-     "skill:plugin:nestads-product-review:plan-review"
+     "plugin:plugin:doc-review:doc-review",
+     "skill:plugin:doc-review:plan-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-product-review:plan-lens-impl-fitness",
+   "id": "agent:plugin:doc-review:plan-lens-impl-fitness",
    "kind": "agent",
    "name": "plan-lens-impl-fitness",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/agents/plan-lens-impl-fitness.md",
+   "path": "~/.claude/plugins/cache/doc-review/agents/plan-lens-impl-fitness.md",
    "summary": "실제 시스템 기준으로 만들 수 있는 기획인지 봐요",
    "outline": [
     "역할",
@@ -3526,21 +3533,21 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review",
-     "skill:plugin:nestads-product-review:plan-review"
+     "plugin:plugin:doc-review:doc-review",
+     "skill:plugin:doc-review:plan-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-product-review:plan-lens-kb",
+   "id": "agent:plugin:doc-review:plan-lens-kb",
    "kind": "agent",
    "name": "plan-lens-kb",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/agents/plan-lens-kb.md",
+   "path": "~/.claude/plugins/cache/doc-review/agents/plan-lens-kb.md",
    "summary": "과거 리뷰에서 반복된 누락이 이번에도 있는지 봐요",
    "outline": [
     "역할",
@@ -3599,22 +3606,22 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product-review:nestads-product-review",
-     "skill:plugin:nestads-product-review:plan-review"
+     "plugin:plugin:doc-review:doc-review",
+     "skill:plugin:doc-review:plan-review"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product:nestads-policy",
+   "id": "skill:plugin:doc-tools:policy-lookup",
    "kind": "skill",
-   "name": "nestads-policy",
+   "name": "policy-lookup",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product"
+    "plugin": "doc-tools"
    },
-   "path": "~/.claude/plugins/cache/nestads-product/nestads-policy/SKILL.md",
-   "summary": "NestAds 정책서에서 현행 규칙을 찾아 답해요",
+   "path": "~/.claude/plugins/cache/doc-tools/policy-lookup/SKILL.md",
+   "summary": "정책서에서 현행 규칙을 찾아 답해요",
    "outline": [
     "언제 쓰나요",
     "진행 순서",
@@ -3627,8 +3634,8 @@
     "tokens": 640
    },
    "alwaysLoaded": {
-    "chars": 225,
-    "tokens": 73,
+    "chars": 216,
+    "tokens": 71,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -3677,20 +3684,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product:nestads-product"
+     "plugin:plugin:doc-tools:doc-tools"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-product:nestads-product-ac-review",
+   "id": "skill:plugin:doc-tools:criteria-review",
    "kind": "skill",
-   "name": "nestads-product-ac-review",
+   "name": "criteria-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product"
+    "plugin": "doc-tools"
    },
-   "path": "~/.claude/plugins/cache/nestads-product/nestads-product-ac-review/SKILL.md",
+   "path": "~/.claude/plugins/cache/doc-tools/criteria-review/SKILL.md",
    "summary": "AC와 TC 문장이 읽기 쉬운지 검토해요",
    "outline": [
     "언제 쓰나요",
@@ -3704,8 +3711,8 @@
     "tokens": 859
    },
    "alwaysLoaded": {
-    "chars": 231,
-    "tokens": 74,
+    "chars": 221,
+    "tokens": 71,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -3754,20 +3761,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-product:nestads-product"
+     "plugin:plugin:doc-tools:doc-tools"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:api-integration",
+   "id": "skill:plugin:web-pipeline:api-integration",
    "kind": "skill",
    "name": "api-integration",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/api-integration/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/api-integration/SKILL.md",
    "summary": "백엔드 API를 화면 코드에 연결해요",
    "outline": [
     "언제 쓰나요",
@@ -3826,7 +3833,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -3834,14 +3841,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:branch-from-ticket",
+   "id": "skill:plugin:web-pipeline:branch-from-ticket",
    "kind": "skill",
    "name": "branch-from-ticket",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/branch-from-ticket/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/branch-from-ticket/SKILL.md",
    "summary": "Jira 티켓에서 브랜치 이름을 만들어요",
    "outline": [
     "언제 쓰나요",
@@ -3900,7 +3907,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -3908,14 +3915,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:code-review",
+   "id": "skill:plugin:web-pipeline:code-review",
    "kind": "skill",
    "name": "code-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/code-review/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/code-review/SKILL.md",
    "summary": "변경 사항을 검토하고 통과 여부를 판정해요",
    "outline": [
     "언제 쓰나요",
@@ -3974,7 +3981,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -3983,14 +3990,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:code-writer",
+   "id": "skill:plugin:web-pipeline:code-writer",
    "kind": "skill",
    "name": "code-writer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/code-writer/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/code-writer/SKILL.md",
    "summary": "계획서대로 화면 코드를 써요",
    "outline": [
     "언제 쓰나요",
@@ -4049,7 +4056,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4057,14 +4064,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:component-audit",
+   "id": "skill:plugin:web-pipeline:component-audit",
    "kind": "skill",
    "name": "component-audit",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/component-audit/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/component-audit/SKILL.md",
    "summary": "공통 컴포넌트 재사용 여부를 점검해요",
    "outline": [
     "언제 쓰나요",
@@ -4123,7 +4130,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4131,14 +4138,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:conventions",
+   "id": "skill:plugin:web-pipeline:conventions",
    "kind": "skill",
    "name": "conventions",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/conventions/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/conventions/SKILL.md",
    "summary": "프론트엔드 코드 규칙을 알려줘요",
    "outline": [
     "언제 쓰나요",
@@ -4197,7 +4204,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4205,14 +4212,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:coverage-report",
+   "id": "skill:plugin:web-pipeline:coverage-report",
    "kind": "skill",
    "name": "coverage-report",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/coverage-report/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/coverage-report/SKILL.md",
    "summary": "테스트 커버리지 보고서를 만들어요",
    "outline": [
     "언제 쓰나요",
@@ -4271,7 +4278,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4279,14 +4286,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:create-pull-request",
+   "id": "skill:plugin:web-pipeline:create-pull-request",
    "kind": "skill",
    "name": "create-pull-request",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/create-pull-request/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/create-pull-request/SKILL.md",
    "summary": "PR 설명을 쓰고 올려요",
    "outline": [
     "언제 쓰나요",
@@ -4345,7 +4352,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4353,14 +4360,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:e2e-test-gen",
+   "id": "skill:plugin:web-pipeline:e2e-test-gen",
    "kind": "skill",
    "name": "e2e-test-gen",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/e2e-test-gen/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/e2e-test-gen/SKILL.md",
    "summary": "브라우저 테스트를 만들어요",
    "outline": [
     "언제 쓰나요",
@@ -4419,7 +4426,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4427,14 +4434,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:epic-frontend-splitter",
+   "id": "skill:plugin:web-pipeline:epic-frontend-splitter",
    "kind": "skill",
    "name": "epic-frontend-splitter",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/epic-frontend-splitter/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/epic-frontend-splitter/SKILL.md",
    "summary": "에픽을 프론트 작업 단위로 나눠요",
    "outline": [
     "언제 쓰나요",
@@ -4493,7 +4500,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4501,14 +4508,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:feature-planner",
+   "id": "skill:plugin:web-pipeline:feature-planner",
    "kind": "skill",
    "name": "feature-planner",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/feature-planner/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/feature-planner/SKILL.md",
    "summary": "기능 구현 계획을 세워요",
    "outline": [
     "언제 쓰나요",
@@ -4567,7 +4574,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4575,14 +4582,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:figma-jira-prd",
+   "id": "skill:plugin:web-pipeline:figma-jira-prd",
    "kind": "skill",
    "name": "figma-jira-prd",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/figma-jira-prd/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/figma-jira-prd/SKILL.md",
    "summary": "Figma와 Jira로 요구사항 문서를 만들어요",
    "outline": [
     "언제 쓰나요",
@@ -4641,7 +4648,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4649,14 +4656,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:quick-fix",
+   "id": "skill:plugin:web-pipeline:quick-fix",
    "kind": "skill",
    "name": "quick-fix",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/quick-fix/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/quick-fix/SKILL.md",
    "summary": "작은 버그를 빠르게 고쳐요",
    "outline": [
     "언제 쓰나요",
@@ -4715,7 +4722,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4723,14 +4730,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-frontend-pipeline:refactor",
+   "id": "skill:plugin:web-pipeline:refactor",
    "kind": "skill",
    "name": "refactor",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/refactor/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/refactor/SKILL.md",
    "summary": "동작은 그대로 두고 구조를 정리해요",
    "outline": [
     "언제 쓰나요",
@@ -4789,7 +4796,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4797,14 +4804,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:architect",
+   "id": "agent:plugin:web-pipeline:architect",
    "kind": "agent",
    "name": "architect",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/architect.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/architect.md",
    "summary": "요구사항을 분석해 화면 설계를 해요",
    "outline": [
     "역할",
@@ -4862,7 +4869,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4870,14 +4877,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:code-reviewer",
+   "id": "agent:plugin:web-pipeline:code-reviewer",
    "kind": "agent",
    "name": "code-reviewer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/code-reviewer.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/code-reviewer.md",
    "summary": "PR 올리기 전에 코드 리뷰를 해요",
    "outline": [
     "역할",
@@ -4935,7 +4942,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -4943,14 +4950,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:executor",
+   "id": "agent:plugin:web-pipeline:executor",
    "kind": "agent",
    "name": "executor",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/executor.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/executor.md",
    "summary": "설계대로 코드를 작성해요",
    "outline": [
     "역할",
@@ -5008,7 +5015,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -5016,14 +5023,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:vitest-test-engineer",
+   "id": "agent:plugin:web-pipeline:vitest-test-engineer",
    "kind": "agent",
    "name": "vitest-test-engineer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/vitest-test-engineer.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/vitest-test-engineer.md",
    "summary": "단위 테스트를 써요",
    "outline": [
     "역할",
@@ -5081,7 +5088,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -5089,14 +5096,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:playwright-test-generator",
+   "id": "agent:plugin:web-pipeline:playwright-test-generator",
    "kind": "agent",
    "name": "playwright-test-generator",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/playwright-test-generator.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/playwright-test-generator.md",
    "summary": "브라우저 테스트를 만들어요",
    "outline": [
     "역할",
@@ -5154,7 +5161,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -5162,14 +5169,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:playwright-test-healer",
+   "id": "agent:plugin:web-pipeline:playwright-test-healer",
    "kind": "agent",
    "name": "playwright-test-healer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/playwright-test-healer.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/playwright-test-healer.md",
    "summary": "깨진 브라우저 테스트를 고쳐요",
    "outline": [
     "역할",
@@ -5227,7 +5234,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -5235,14 +5242,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend-pipeline:playwright-test-planner",
+   "id": "agent:plugin:web-pipeline:playwright-test-planner",
    "kind": "agent",
    "name": "playwright-test-planner",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/agents/playwright-test-planner.md",
+   "path": "~/.claude/plugins/cache/web-pipeline/agents/playwright-test-planner.md",
    "summary": "브라우저 테스트 계획을 세워요",
    "outline": [
     "역할",
@@ -5300,7 +5307,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline"
+     "plugin:plugin:web-pipeline:web-pipeline"
     ]
    },
    "findings": [
@@ -5308,14 +5315,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-frontend:nestads-admin-playwright-test-generator",
+   "id": "agent:plugin:web-testing:e2e-test-generator",
    "kind": "agent",
-   "name": "nestads-admin-playwright-test-generator",
+   "name": "e2e-test-generator",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/agents/nestads-admin-playwright-test-generator.md",
+   "path": "~/.claude/plugins/cache/web-testing/agents/e2e-test-generator.md",
    "summary": "어드민 화면 테스트를 만들어요",
    "outline": [
     "역할",
@@ -5328,8 +5335,8 @@
     "tokens": 445
    },
    "alwaysLoaded": {
-    "chars": 239,
-    "tokens": 76,
+    "chars": 218,
+    "tokens": 70,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -5373,20 +5380,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend:nestads-frontend"
+     "plugin:plugin:web-testing:web-testing"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-frontend:nestads-admin-playwright-test-healer",
+   "id": "agent:plugin:web-testing:e2e-test-healer",
    "kind": "agent",
-   "name": "nestads-admin-playwright-test-healer",
+   "name": "e2e-test-healer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/agents/nestads-admin-playwright-test-healer.md",
+   "path": "~/.claude/plugins/cache/web-testing/agents/e2e-test-healer.md",
    "summary": "어드민 화면 테스트를 고쳐요",
    "outline": [
     "역할",
@@ -5399,8 +5406,8 @@
     "tokens": 2033
    },
    "alwaysLoaded": {
-    "chars": 235,
-    "tokens": 74,
+    "chars": 214,
+    "tokens": 69,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -5444,20 +5451,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend:nestads-frontend"
+     "plugin:plugin:web-testing:web-testing"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-frontend:nestads-admin-playwright-test-planner",
+   "id": "agent:plugin:web-testing:e2e-test-planner",
    "kind": "agent",
-   "name": "nestads-admin-playwright-test-planner",
+   "name": "e2e-test-planner",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/agents/nestads-admin-playwright-test-planner.md",
+   "path": "~/.claude/plugins/cache/web-testing/agents/e2e-test-planner.md",
    "summary": "어드민 화면 테스트 계획을 세워요",
    "outline": [
     "역할",
@@ -5470,8 +5477,8 @@
     "tokens": 1351
    },
    "alwaysLoaded": {
-    "chars": 239,
-    "tokens": 76,
+    "chars": 218,
+    "tokens": 71,
     "what": "목록 한 줄(이름과 설명)"
    },
    "enabled": true,
@@ -5515,20 +5522,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend:nestads-frontend"
+     "plugin:plugin:web-testing:web-testing"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-frontend:analyze-legacy",
+   "id": "skill:plugin:web-testing:analyze-legacy",
    "kind": "skill",
    "name": "analyze-legacy",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/analyze-legacy/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-testing/analyze-legacy/SKILL.md",
    "summary": "예전 화면 코드를 읽고 구조를 설명해요",
    "outline": [
     "언제 쓰나요",
@@ -5587,20 +5594,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend:nestads-frontend"
+     "plugin:plugin:web-testing:web-testing"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-frontend:design-to-code",
+   "id": "skill:plugin:web-testing:design-to-code",
    "kind": "skill",
    "name": "design-to-code",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/design-to-code/SKILL.md",
+   "path": "~/.claude/plugins/cache/web-testing/design-to-code/SKILL.md",
    "summary": "Figma 화면을 코드로 옮겨요",
    "outline": [
     "언제 쓰나요",
@@ -5659,20 +5666,20 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-frontend:nestads-frontend"
+     "plugin:plugin:web-testing:web-testing"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:plan",
+   "id": "skill:plugin:api-pipeline:plan",
    "kind": "skill",
    "name": "plan",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/plan/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/plan/SKILL.md",
    "summary": "Jira 에픽과 Figma를 분석해 구현 계획을 써요",
    "outline": [
     "언제 쓰나요",
@@ -5735,23 +5742,23 @@
    },
    "links": {
     "out": [
-     "agent:plugin:nestads-backend-pipeline:plan-agent"
+     "agent:plugin:api-pipeline:plan-agent"
     ],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": []
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:implement",
+   "id": "skill:plugin:api-pipeline:implement",
    "kind": "skill",
    "name": "implement",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/implement/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/implement/SKILL.md",
    "summary": "계획을 구현 설계서로 풀어요",
    "outline": [
     "언제 쓰나요",
@@ -5810,7 +5817,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -5818,14 +5825,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:code-writer",
+   "id": "skill:plugin:api-pipeline:code-writer",
    "kind": "skill",
    "name": "code-writer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/code-writer/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/code-writer/SKILL.md",
    "summary": "설계서대로 구현하고 테스트를 통과시켜요",
    "outline": [
     "언제 쓰나요",
@@ -5884,7 +5891,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -5892,14 +5899,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:pr-description",
+   "id": "skill:plugin:api-pipeline:pr-description",
    "kind": "skill",
    "name": "pr-description",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/pr-description/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/pr-description/SKILL.md",
    "summary": "PR 설명을 써요",
    "outline": [
     "언제 쓰나요",
@@ -5958,7 +5965,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -5966,14 +5973,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:reverse-merge",
+   "id": "skill:plugin:api-pipeline:reverse-merge",
    "kind": "skill",
    "name": "reverse-merge",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/reverse-merge/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/reverse-merge/SKILL.md",
    "summary": "운영 브랜치 변경을 개발 브랜치로 되돌려 합쳐요",
    "outline": [
     "언제 쓰나요",
@@ -6032,7 +6039,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -6040,14 +6047,14 @@
    ]
   },
   {
-   "id": "skill:plugin:nestads-backend-pipeline:test-writer",
+   "id": "skill:plugin:api-pipeline:test-writer",
    "kind": "skill",
    "name": "test-writer",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/test-writer/SKILL.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/test-writer/SKILL.md",
    "summary": "백엔드 테스트를 써요",
    "outline": [
     "언제 쓰나요",
@@ -6106,7 +6113,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -6114,14 +6121,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-backend-pipeline:plan-agent",
+   "id": "agent:plugin:api-pipeline:plan-agent",
    "kind": "agent",
    "name": "plan-agent",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/agents/plan-agent.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/agents/plan-agent.md",
    "summary": "Jira 에픽과 Figma를 분석해 계획을 써요",
    "outline": [
     "역할",
@@ -6180,21 +6187,21 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline",
-     "skill:plugin:nestads-backend-pipeline:plan"
+     "plugin:plugin:api-pipeline:api-pipeline",
+     "skill:plugin:api-pipeline:plan"
     ]
    },
    "findings": []
   },
   {
-   "id": "agent:plugin:nestads-backend-pipeline:implement-agent",
+   "id": "agent:plugin:api-pipeline:implement-agent",
    "kind": "agent",
    "name": "implement-agent",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/agents/implement-agent.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/agents/implement-agent.md",
    "summary": "기존 코드를 훑어 구현 설계를 써요",
    "outline": [
     "역할",
@@ -6252,7 +6259,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -6260,14 +6267,14 @@
    ]
   },
   {
-   "id": "agent:plugin:nestads-backend-pipeline:code-writer-agent",
+   "id": "agent:plugin:api-pipeline:code-writer-agent",
    "kind": "agent",
    "name": "code-writer-agent",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/agents/code-writer-agent.md",
+   "path": "~/.claude/plugins/cache/api-pipeline/agents/code-writer-agent.md",
    "summary": "테스트를 통과할 때까지 구현해요",
    "outline": [
     "역할",
@@ -6325,7 +6332,7 @@
    "links": {
     "out": [],
     "in": [
-     "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline"
+     "plugin:plugin:api-pipeline:api-pipeline"
     ]
    },
    "findings": [
@@ -10257,14 +10264,14 @@
    "findings": []
   },
   {
-   "id": "plugin:plugin:nestads-product-review:nestads-product-review",
+   "id": "plugin:plugin:doc-review:doc-review",
    "kind": "plugin",
-   "name": "nestads-product-review",
+   "name": "doc-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
-   "path": "~/.claude/plugins/cache/nestads-product-review/.claude-plugin/plugin.json",
+   "path": "~/.claude/plugins/cache/doc-review/.claude-plugin/plugin.json",
    "summary": "기획서를 다섯 가지 관점으로 검토해요. 작업 설명서·에이전트·명령 9개를 가져와요.",
    "outline": [
     "들어 있는 것"
@@ -10315,30 +10322,30 @@
    },
    "links": {
     "out": [
-     "skill:plugin:nestads-product-review:plan-review",
-     "skill:plugin:nestads-product-review:plan-diff",
-     "skill:plugin:nestads-product-review:kb-harvest",
-     "skill:plugin:nestads-product-review:review-feedback",
-     "agent:plugin:nestads-product-review:plan-lens-policy",
-     "agent:plugin:nestads-product-review:plan-lens-readability",
-     "agent:plugin:nestads-product-review:plan-lens-dev-policy",
-     "agent:plugin:nestads-product-review:plan-lens-impl-fitness",
-     "agent:plugin:nestads-product-review:plan-lens-kb"
+     "skill:plugin:doc-review:plan-review",
+     "skill:plugin:doc-review:plan-diff",
+     "skill:plugin:doc-review:kb-harvest",
+     "skill:plugin:doc-review:review-feedback",
+     "agent:plugin:doc-review:plan-lens-policy",
+     "agent:plugin:doc-review:plan-lens-readability",
+     "agent:plugin:doc-review:plan-lens-dev-policy",
+     "agent:plugin:doc-review:plan-lens-impl-fitness",
+     "agent:plugin:doc-review:plan-lens-kb"
     ],
     "in": []
    },
    "findings": []
   },
   {
-   "id": "plugin:plugin:nestads-product:nestads-product",
+   "id": "plugin:plugin:doc-tools:doc-tools",
    "kind": "plugin",
-   "name": "nestads-product",
+   "name": "doc-tools",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product"
+    "plugin": "doc-tools"
    },
-   "path": "~/.claude/plugins/cache/nestads-product/.claude-plugin/plugin.json",
-   "summary": "NestAds 정책서와 AC 검토 도구. 작업 설명서·에이전트·명령 2개를 가져와요.",
+   "path": "~/.claude/plugins/cache/doc-tools/.claude-plugin/plugin.json",
+   "summary": "정책서와 AC 검토 도구. 작업 설명서·에이전트·명령 2개를 가져와요.",
    "outline": [
     "들어 있는 것"
    ],
@@ -10388,22 +10395,22 @@
    },
    "links": {
     "out": [
-     "skill:plugin:nestads-product:nestads-policy",
-     "skill:plugin:nestads-product:nestads-product-ac-review"
+     "skill:plugin:doc-tools:policy-lookup",
+     "skill:plugin:doc-tools:criteria-review"
     ],
     "in": []
    },
    "findings": []
   },
   {
-   "id": "plugin:plugin:nestads-frontend-pipeline:nestads-frontend-pipeline",
+   "id": "plugin:plugin:web-pipeline:web-pipeline",
    "kind": "plugin",
-   "name": "nestads-frontend-pipeline",
+   "name": "web-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend-pipeline/.claude-plugin/plugin.json",
+   "path": "~/.claude/plugins/cache/web-pipeline/.claude-plugin/plugin.json",
    "summary": "프론트엔드 개발 파이프라인. 작업 설명서·에이전트·명령 21개를 가져와요.",
    "outline": [
     "들어 있는 것"
@@ -10454,41 +10461,41 @@
    },
    "links": {
     "out": [
-     "skill:plugin:nestads-frontend-pipeline:api-integration",
-     "skill:plugin:nestads-frontend-pipeline:branch-from-ticket",
-     "skill:plugin:nestads-frontend-pipeline:code-review",
-     "skill:plugin:nestads-frontend-pipeline:code-writer",
-     "skill:plugin:nestads-frontend-pipeline:component-audit",
-     "skill:plugin:nestads-frontend-pipeline:conventions",
-     "skill:plugin:nestads-frontend-pipeline:coverage-report",
-     "skill:plugin:nestads-frontend-pipeline:create-pull-request",
-     "skill:plugin:nestads-frontend-pipeline:e2e-test-gen",
-     "skill:plugin:nestads-frontend-pipeline:epic-frontend-splitter",
-     "skill:plugin:nestads-frontend-pipeline:feature-planner",
-     "skill:plugin:nestads-frontend-pipeline:figma-jira-prd",
-     "skill:plugin:nestads-frontend-pipeline:quick-fix",
-     "skill:plugin:nestads-frontend-pipeline:refactor",
-     "agent:plugin:nestads-frontend-pipeline:architect",
-     "agent:plugin:nestads-frontend-pipeline:code-reviewer",
-     "agent:plugin:nestads-frontend-pipeline:executor",
-     "agent:plugin:nestads-frontend-pipeline:vitest-test-engineer",
-     "agent:plugin:nestads-frontend-pipeline:playwright-test-generator",
-     "agent:plugin:nestads-frontend-pipeline:playwright-test-healer",
-     "agent:plugin:nestads-frontend-pipeline:playwright-test-planner"
+     "skill:plugin:web-pipeline:api-integration",
+     "skill:plugin:web-pipeline:branch-from-ticket",
+     "skill:plugin:web-pipeline:code-review",
+     "skill:plugin:web-pipeline:code-writer",
+     "skill:plugin:web-pipeline:component-audit",
+     "skill:plugin:web-pipeline:conventions",
+     "skill:plugin:web-pipeline:coverage-report",
+     "skill:plugin:web-pipeline:create-pull-request",
+     "skill:plugin:web-pipeline:e2e-test-gen",
+     "skill:plugin:web-pipeline:epic-frontend-splitter",
+     "skill:plugin:web-pipeline:feature-planner",
+     "skill:plugin:web-pipeline:figma-jira-prd",
+     "skill:plugin:web-pipeline:quick-fix",
+     "skill:plugin:web-pipeline:refactor",
+     "agent:plugin:web-pipeline:architect",
+     "agent:plugin:web-pipeline:code-reviewer",
+     "agent:plugin:web-pipeline:executor",
+     "agent:plugin:web-pipeline:vitest-test-engineer",
+     "agent:plugin:web-pipeline:playwright-test-generator",
+     "agent:plugin:web-pipeline:playwright-test-healer",
+     "agent:plugin:web-pipeline:playwright-test-planner"
     ],
     "in": []
    },
    "findings": []
   },
   {
-   "id": "plugin:plugin:nestads-frontend:nestads-frontend",
+   "id": "plugin:plugin:web-testing:web-testing",
    "kind": "plugin",
-   "name": "nestads-frontend",
+   "name": "web-testing",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
-   "path": "~/.claude/plugins/cache/nestads-frontend/.claude-plugin/plugin.json",
+   "path": "~/.claude/plugins/cache/web-testing/.claude-plugin/plugin.json",
    "summary": "어드민 화면 테스트 도구. 작업 설명서·에이전트·명령 5개를 가져와요.",
    "outline": [
     "들어 있는 것"
@@ -10539,25 +10546,25 @@
    },
    "links": {
     "out": [
-     "agent:plugin:nestads-frontend:nestads-admin-playwright-test-generator",
-     "agent:plugin:nestads-frontend:nestads-admin-playwright-test-healer",
-     "agent:plugin:nestads-frontend:nestads-admin-playwright-test-planner",
-     "skill:plugin:nestads-frontend:analyze-legacy",
-     "skill:plugin:nestads-frontend:design-to-code"
+     "agent:plugin:web-testing:e2e-test-generator",
+     "agent:plugin:web-testing:e2e-test-healer",
+     "agent:plugin:web-testing:e2e-test-planner",
+     "skill:plugin:web-testing:analyze-legacy",
+     "skill:plugin:web-testing:design-to-code"
     ],
     "in": []
    },
    "findings": []
   },
   {
-   "id": "plugin:plugin:nestads-backend-pipeline:nestads-backend-pipeline",
+   "id": "plugin:plugin:api-pipeline:api-pipeline",
    "kind": "plugin",
-   "name": "nestads-backend-pipeline",
+   "name": "api-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
-   "path": "~/.claude/plugins/cache/nestads-backend-pipeline/.claude-plugin/plugin.json",
+   "path": "~/.claude/plugins/cache/api-pipeline/.claude-plugin/plugin.json",
    "summary": "백엔드 개발 파이프라인. 작업 설명서·에이전트·명령 9개를 가져와요.",
    "outline": [
     "들어 있는 것"
@@ -10608,15 +10615,15 @@
    },
    "links": {
     "out": [
-     "skill:plugin:nestads-backend-pipeline:plan",
-     "skill:plugin:nestads-backend-pipeline:implement",
-     "skill:plugin:nestads-backend-pipeline:code-writer",
-     "skill:plugin:nestads-backend-pipeline:pr-description",
-     "skill:plugin:nestads-backend-pipeline:reverse-merge",
-     "skill:plugin:nestads-backend-pipeline:test-writer",
-     "agent:plugin:nestads-backend-pipeline:plan-agent",
-     "agent:plugin:nestads-backend-pipeline:implement-agent",
-     "agent:plugin:nestads-backend-pipeline:code-writer-agent"
+     "skill:plugin:api-pipeline:plan",
+     "skill:plugin:api-pipeline:implement",
+     "skill:plugin:api-pipeline:code-writer",
+     "skill:plugin:api-pipeline:pr-description",
+     "skill:plugin:api-pipeline:reverse-merge",
+     "skill:plugin:api-pipeline:test-writer",
+     "agent:plugin:api-pipeline:plan-agent",
+     "agent:plugin:api-pipeline:implement-agent",
+     "agent:plugin:api-pipeline:code-writer-agent"
     ],
     "in": []
    },
@@ -11378,9 +11385,9 @@
    "findings": []
   },
   {
-   "id": "mcp:user::wkb",
+   "id": "mcp:user::kb-cache",
    "kind": "mcp",
-   "name": "wkb",
+   "name": "kb-cache",
    "source": {
     "type": "user"
    },
@@ -11434,19 +11441,19 @@
    "links": {
     "out": [],
     "in": [
-     "skill:user::work-kb-qa"
+     "skill:user::fact-lookup"
     ]
    },
    "findings": []
   },
   {
-   "id": "mcp:user::nestads-admin",
+   "id": "mcp:user::admin-console",
    "kind": "mcp",
-   "name": "nestads-admin",
+   "name": "admin-console",
    "source": {
     "type": "user"
    },
-   "summary": "NestAds 어드민 조회",
+   "summary": "어드민 조회",
    "outline": [],
    "size": {
     "chars": 240,
@@ -11560,9 +11567,9 @@
    "findings": []
   },
   {
-   "id": "mcp:user::nestads-kibana",
+   "id": "mcp:user::log-viewer",
    "kind": "mcp",
-   "name": "nestads-kibana",
+   "name": "log-viewer",
    "source": {
     "type": "user"
    },
@@ -11741,12 +11748,12 @@
    "findings": []
   },
   {
-   "id": "mcp:plugin:nestads-frontend:notebooklm-mcp",
+   "id": "mcp:plugin:web-testing:notebooklm-mcp",
    "kind": "mcp",
    "name": "notebooklm-mcp",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
    "summary": "NotebookLM 노트북 조회",
    "outline": [],
@@ -12007,13 +12014,13 @@
    }
   },
   {
-   "id": "hook:user::pretooluse: wkb-first.mjs",
+   "id": "hook:user::pretooluse: route-first.mjs",
    "kind": "hook",
-   "name": "PreToolUse: wkb-first.mjs",
+   "name": "PreToolUse: route-first.mjs",
    "source": {
     "type": "user"
    },
-   "summary": "PreToolUse 때 wkb-first.mjs를 실행해요",
+   "summary": "PreToolUse 때 route-first.mjs를 실행해요",
    "outline": [],
    "size": {
     "chars": 180,
@@ -12070,7 +12077,7 @@
    "hook": {
     "event": "PreToolUse",
     "matcher": "Bash|Write|Edit",
-    "command": "bun run ~/.claude/harness/hooks/wkb-first.mjs",
+    "command": "bun run ~/.claude/harness/hooks/route-first.mjs",
     "runs30": 3880,
     "avgMs": 410,
     "maxMs": 2200,
@@ -12303,15 +12310,15 @@
    ]
   },
   {
-   "id": "g:instruction|project|nestads-frontend",
+   "id": "g:instruction|project|web-app",
    "kind": "instruction",
-   "title": "nestads-frontend",
+   "title": "web-app",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
    "items": [
-    "instruction:project:nestads-frontend:claude.md"
+    "instruction:project:web-app:claude.md"
    ]
   },
   {
@@ -12327,70 +12334,70 @@
    ]
   },
   {
-   "id": "g:memory|project|lash",
+   "id": "g:memory|project|notes",
    "kind": "memory",
-   "title": "lash",
+   "title": "notes",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
    "items": [
-    "memory:project:lash:user_profile",
-    "memory:project:lash:feedback_preferences",
-    "memory:project:lash:feedback_collaboration_handoff",
-    "memory:project:lash:feedback_rework_causes",
-    "memory:project:lash:feedback_wiki_width",
-    "memory:project:lash:feedback_code_analysis_speed",
-    "memory:project:lash:feedback_stock_data_routing",
-    "memory:project:lash:feedback_explain_before_agree",
-    "memory:project:lash:project_work_kb",
-    "memory:project:lash:project_actc_studio",
-    "memory:project:lash:project_iphone_duo_policy",
-    "memory:project:lash:project_wp11011_delivery_priority",
-    "memory:project:lash:project_krxdata_workflow",
-    "memory:project:lash:project_krxdata_validation_method",
-    "memory:project:lash:reference_sdk_code_index",
-    "memory:project:lash:reference_nestads_feature_doc_index",
-    "memory:project:lash:reference_token_rotation",
-    "memory:project:lash:reference_mcp_windows_path"
+    "memory:project:notes:profile_basics",
+    "memory:project:notes:style_preferences",
+    "memory:project:notes:handoff_rules",
+    "memory:project:notes:rework_causes",
+    "memory:project:notes:wiki_layout",
+    "memory:project:notes:code_lookup_tips",
+    "memory:project:notes:data_source_routing",
+    "memory:project:notes:explain_before_agree",
+    "memory:project:notes:project_knowledge_cache",
+    "memory:project:notes:project_test_hub",
+    "memory:project:notes:project_foldable_policy",
+    "memory:project:notes:project_delivery_priority",
+    "memory:project:notes:project_stock_scoring",
+    "memory:project:notes:project_backtest_checks",
+    "memory:project:notes:reference_code_index",
+    "memory:project:notes:reference_feature_doc_index",
+    "memory:project:notes:reference_key_rotation",
+    "memory:project:notes:reference_service_path_fix"
    ]
   },
   {
-   "id": "g:memory|project|nestads-frontend",
+   "id": "g:memory|project|web-app",
    "kind": "memory",
-   "title": "nestads-frontend",
+   "title": "web-app",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
    "items": [
-    "memory:project:nestads-frontend:feedback_component_reuse",
-    "memory:project:nestads-frontend:project_admin_list_fit",
-    "memory:project:nestads-frontend:reference_playwright_setup"
+    "memory:project:web-app:component_reuse",
+    "memory:project:web-app:project_list_layout",
+    "memory:project:web-app:reference_test_setup"
    ]
   },
   {
-   "id": "g:memory-index|project|lash",
+   "id": "g:memory-index|project|notes",
    "kind": "memory-index",
-   "title": "lash",
+   "title": "notes",
    "source": {
     "type": "project",
-    "project": "lash"
+    "project": "notes"
    },
    "items": [
-    "memory-index:project:lash:memory.md"
+    "memory-index:project:notes:memory.md"
    ]
   },
   {
-   "id": "g:memory-index|project|nestads-frontend",
+   "id": "g:memory-index|project|web-app",
    "kind": "memory-index",
-   "title": "nestads-frontend",
+   "title": "web-app",
    "source": {
     "type": "project",
-    "project": "nestads-frontend"
+    "project": "web-app"
    },
    "items": [
-    "memory-index:project:nestads-frontend:memory.md"
+    "memory-index:project:web-app:memory.md"
    ]
   },
   {
@@ -12403,8 +12410,8 @@
    "items": [
     "skill:user::my-design",
     "skill:user::compound",
-    "skill:user::nestads-update",
-    "skill:user::work-kb-qa",
+    "skill:user::repo-sync",
+    "skill:user::fact-lookup",
     "skill:user::deep-research",
     "skill:user::new-service-advisor"
    ]
@@ -12449,148 +12456,148 @@
    ]
   },
   {
-   "id": "g:skill|plugin|nestads-product-review",
+   "id": "g:skill|plugin|doc-review",
    "kind": "skill",
-   "title": "nestads-product-review",
+   "title": "doc-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
    "items": [
-    "skill:plugin:nestads-product-review:plan-review",
-    "skill:plugin:nestads-product-review:plan-diff",
-    "skill:plugin:nestads-product-review:kb-harvest",
-    "skill:plugin:nestads-product-review:review-feedback"
+    "skill:plugin:doc-review:plan-review",
+    "skill:plugin:doc-review:plan-diff",
+    "skill:plugin:doc-review:kb-harvest",
+    "skill:plugin:doc-review:review-feedback"
    ]
   },
   {
-   "id": "g:agent|plugin|nestads-product-review",
+   "id": "g:agent|plugin|doc-review",
    "kind": "agent",
-   "title": "nestads-product-review",
+   "title": "doc-review",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product-review"
+    "plugin": "doc-review"
    },
    "items": [
-    "agent:plugin:nestads-product-review:plan-lens-policy",
-    "agent:plugin:nestads-product-review:plan-lens-readability",
-    "agent:plugin:nestads-product-review:plan-lens-dev-policy",
-    "agent:plugin:nestads-product-review:plan-lens-impl-fitness",
-    "agent:plugin:nestads-product-review:plan-lens-kb"
+    "agent:plugin:doc-review:plan-lens-policy",
+    "agent:plugin:doc-review:plan-lens-readability",
+    "agent:plugin:doc-review:plan-lens-dev-policy",
+    "agent:plugin:doc-review:plan-lens-impl-fitness",
+    "agent:plugin:doc-review:plan-lens-kb"
    ]
   },
   {
-   "id": "g:skill|plugin|nestads-product",
+   "id": "g:skill|plugin|doc-tools",
    "kind": "skill",
-   "title": "nestads-product",
+   "title": "doc-tools",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-product"
+    "plugin": "doc-tools"
    },
    "items": [
-    "skill:plugin:nestads-product:nestads-policy",
-    "skill:plugin:nestads-product:nestads-product-ac-review"
+    "skill:plugin:doc-tools:policy-lookup",
+    "skill:plugin:doc-tools:criteria-review"
    ]
   },
   {
-   "id": "g:skill|plugin|nestads-frontend-pipeline",
+   "id": "g:skill|plugin|web-pipeline",
    "kind": "skill",
-   "title": "nestads-frontend-pipeline",
+   "title": "web-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
    "items": [
-    "skill:plugin:nestads-frontend-pipeline:api-integration",
-    "skill:plugin:nestads-frontend-pipeline:branch-from-ticket",
-    "skill:plugin:nestads-frontend-pipeline:code-review",
-    "skill:plugin:nestads-frontend-pipeline:code-writer",
-    "skill:plugin:nestads-frontend-pipeline:component-audit",
-    "skill:plugin:nestads-frontend-pipeline:conventions",
-    "skill:plugin:nestads-frontend-pipeline:coverage-report",
-    "skill:plugin:nestads-frontend-pipeline:create-pull-request",
-    "skill:plugin:nestads-frontend-pipeline:e2e-test-gen",
-    "skill:plugin:nestads-frontend-pipeline:epic-frontend-splitter",
-    "skill:plugin:nestads-frontend-pipeline:feature-planner",
-    "skill:plugin:nestads-frontend-pipeline:figma-jira-prd",
-    "skill:plugin:nestads-frontend-pipeline:quick-fix",
-    "skill:plugin:nestads-frontend-pipeline:refactor"
+    "skill:plugin:web-pipeline:api-integration",
+    "skill:plugin:web-pipeline:branch-from-ticket",
+    "skill:plugin:web-pipeline:code-review",
+    "skill:plugin:web-pipeline:code-writer",
+    "skill:plugin:web-pipeline:component-audit",
+    "skill:plugin:web-pipeline:conventions",
+    "skill:plugin:web-pipeline:coverage-report",
+    "skill:plugin:web-pipeline:create-pull-request",
+    "skill:plugin:web-pipeline:e2e-test-gen",
+    "skill:plugin:web-pipeline:epic-frontend-splitter",
+    "skill:plugin:web-pipeline:feature-planner",
+    "skill:plugin:web-pipeline:figma-jira-prd",
+    "skill:plugin:web-pipeline:quick-fix",
+    "skill:plugin:web-pipeline:refactor"
    ]
   },
   {
-   "id": "g:agent|plugin|nestads-frontend-pipeline",
+   "id": "g:agent|plugin|web-pipeline",
    "kind": "agent",
-   "title": "nestads-frontend-pipeline",
+   "title": "web-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend-pipeline"
+    "plugin": "web-pipeline"
    },
    "items": [
-    "agent:plugin:nestads-frontend-pipeline:architect",
-    "agent:plugin:nestads-frontend-pipeline:code-reviewer",
-    "agent:plugin:nestads-frontend-pipeline:executor",
-    "agent:plugin:nestads-frontend-pipeline:vitest-test-engineer",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-generator",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-healer",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-planner"
+    "agent:plugin:web-pipeline:architect",
+    "agent:plugin:web-pipeline:code-reviewer",
+    "agent:plugin:web-pipeline:executor",
+    "agent:plugin:web-pipeline:vitest-test-engineer",
+    "agent:plugin:web-pipeline:playwright-test-generator",
+    "agent:plugin:web-pipeline:playwright-test-healer",
+    "agent:plugin:web-pipeline:playwright-test-planner"
    ]
   },
   {
-   "id": "g:agent|plugin|nestads-frontend",
+   "id": "g:agent|plugin|web-testing",
    "kind": "agent",
-   "title": "nestads-frontend",
+   "title": "web-testing",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
    "items": [
-    "agent:plugin:nestads-frontend:nestads-admin-playwright-test-generator",
-    "agent:plugin:nestads-frontend:nestads-admin-playwright-test-healer",
-    "agent:plugin:nestads-frontend:nestads-admin-playwright-test-planner"
+    "agent:plugin:web-testing:e2e-test-generator",
+    "agent:plugin:web-testing:e2e-test-healer",
+    "agent:plugin:web-testing:e2e-test-planner"
    ]
   },
   {
-   "id": "g:skill|plugin|nestads-frontend",
+   "id": "g:skill|plugin|web-testing",
    "kind": "skill",
-   "title": "nestads-frontend",
+   "title": "web-testing",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
    "items": [
-    "skill:plugin:nestads-frontend:analyze-legacy",
-    "skill:plugin:nestads-frontend:design-to-code"
+    "skill:plugin:web-testing:analyze-legacy",
+    "skill:plugin:web-testing:design-to-code"
    ]
   },
   {
-   "id": "g:skill|plugin|nestads-backend-pipeline",
+   "id": "g:skill|plugin|api-pipeline",
    "kind": "skill",
-   "title": "nestads-backend-pipeline",
+   "title": "api-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
    "items": [
-    "skill:plugin:nestads-backend-pipeline:plan",
-    "skill:plugin:nestads-backend-pipeline:implement",
-    "skill:plugin:nestads-backend-pipeline:code-writer",
-    "skill:plugin:nestads-backend-pipeline:pr-description",
-    "skill:plugin:nestads-backend-pipeline:reverse-merge",
-    "skill:plugin:nestads-backend-pipeline:test-writer"
+    "skill:plugin:api-pipeline:plan",
+    "skill:plugin:api-pipeline:implement",
+    "skill:plugin:api-pipeline:code-writer",
+    "skill:plugin:api-pipeline:pr-description",
+    "skill:plugin:api-pipeline:reverse-merge",
+    "skill:plugin:api-pipeline:test-writer"
    ]
   },
   {
-   "id": "g:agent|plugin|nestads-backend-pipeline",
+   "id": "g:agent|plugin|api-pipeline",
    "kind": "agent",
-   "title": "nestads-backend-pipeline",
+   "title": "api-pipeline",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-backend-pipeline"
+    "plugin": "api-pipeline"
    },
    "items": [
-    "agent:plugin:nestads-backend-pipeline:plan-agent",
-    "agent:plugin:nestads-backend-pipeline:implement-agent",
-    "agent:plugin:nestads-backend-pipeline:code-writer-agent"
+    "agent:plugin:api-pipeline:plan-agent",
+    "agent:plugin:api-pipeline:implement-agent",
+    "agent:plugin:api-pipeline:code-writer-agent"
    ]
   },
   {
@@ -12788,10 +12795,10 @@
     "type": "user"
    },
    "items": [
-    "mcp:user::wkb",
-    "mcp:user::nestads-admin",
+    "mcp:user::kb-cache",
+    "mcp:user::admin-console",
     "mcp:user::playwright",
-    "mcp:user::nestads-kibana",
+    "mcp:user::log-viewer",
     "mcp:user::telegram"
    ]
   },
@@ -12808,15 +12815,15 @@
    ]
   },
   {
-   "id": "g:mcp|plugin|nestads-frontend",
+   "id": "g:mcp|plugin|web-testing",
    "kind": "mcp",
-   "title": "nestads-frontend",
+   "title": "web-testing",
    "source": {
     "type": "plugin",
-    "plugin": "nestads-frontend"
+    "plugin": "web-testing"
    },
    "items": [
-    "mcp:plugin:nestads-frontend:notebooklm-mcp"
+    "mcp:plugin:web-testing:notebooklm-mcp"
    ]
   },
   {
@@ -12841,7 +12848,7 @@
    "items": [
     "hook:user::sessionstart: session-start.mjs",
     "hook:user::userpromptsubmit: trigger-inject.mjs",
-    "hook:user::pretooluse: wkb-first.mjs",
+    "hook:user::pretooluse: route-first.mjs",
     "hook:user::posttooluse: design-gate.mjs",
     "hook:user::stop: compound-detector.mjs"
    ]
@@ -12863,7 +12870,7 @@
   {
    "id": "f-memidx-truncated",
    "category": "broken",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "오래된 항목을 지우거나, 한 줄 설명을 더 짧게 줄여 보세요. 자주 안 쓰는 메모리는 목차에서 빼고 파일만 남겨 두면 줄 수가 줄어요."
    ],
@@ -12874,9 +12881,14 @@
    "why": "Claude Code는 메모리 목차의 앞 200줄만 읽어요. 그 뒤에 적은 메모리는 목차에 있어도 AI가 존재를 알지 못해서, 필요할 때 찾아 읽지 못할 수 있어요.",
    "fix": "오래된 항목을 지우거나, 한 줄 설명을 더 짧게 줄여 보세요. 자주 안 쓰는 메모리는 목차에서 빼고 파일만 남겨 두면 줄 수가 줄어요.",
    "items": [
-    "memory-index:project:lash:memory.md"
+    "memory-index:project:notes:memory.md"
    ],
-   "evidence": "지금 214줄이에요. 14줄(약 6퍼센트)이 읽히지 않아요."
+   "evidence": "지금 214줄이에요. 14줄(약 6퍼센트)이 읽히지 않아요.",
+   "gain": {
+    "text": "읽히지 않던 14줄이 다시 읽혀요",
+    "upTo": true,
+    "count": 14
+   }
   },
   {
    "id": "f-failing-hook",
@@ -12892,52 +12904,57 @@
    "why": "실패한 규칙은 AI에게 넣으려던 안내나 막으려던 동작이 빠졌다는 뜻일 수 있어요. 실패가 이어져도 화면에는 크게 드러나지 않을 수 있어요.",
    "fix": "아래 규칙을 직접 한 번 실행해서 오류 메시지를 확인해 보세요. 경로가 바뀌었거나 프로그램이 설치돼 있지 않은 경우가 많아요.",
    "items": [
-    "hook:user::pretooluse: wkb-first.mjs"
+    "hook:user::pretooluse: route-first.mjs"
    ],
    "evidence": "3,880번 중 6번 실패 (종료 코드가 0이 아니었어요)."
   },
   {
    "id": "f-unused-plugin-front",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "mechanical",
    "steps": [
     "당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요."
    ],
-   "prompt": "nestads-frontend-pipeline 플러그인을 한 달 동안 하나도 안 썼어요. 당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요.",
+   "prompt": "web-pipeline 플러그인을 한 달 동안 하나도 안 썼어요. 당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요.",
    "rule": "unused-plugin",
    "severity": "medium",
-   "title": "nestads-frontend-pipeline 플러그인을 한 달 동안 하나도 안 썼어요",
+   "title": "web-pipeline 플러그인을 한 달 동안 하나도 안 썼어요",
    "why": "켜 둔 플러그인은 안에 든 작업 설명서와 에이전트 목록이 대화마다 컨텍스트에 미리 채워져요. 안 쓰는데 켜져 있으면 자리만 차지해요.",
    "fix": "당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요.",
    "items": [
-    "skill:plugin:nestads-frontend-pipeline:api-integration",
-    "skill:plugin:nestads-frontend-pipeline:branch-from-ticket",
-    "skill:plugin:nestads-frontend-pipeline:code-review",
-    "skill:plugin:nestads-frontend-pipeline:code-writer",
-    "skill:plugin:nestads-frontend-pipeline:component-audit",
-    "skill:plugin:nestads-frontend-pipeline:conventions",
-    "skill:plugin:nestads-frontend-pipeline:coverage-report",
-    "skill:plugin:nestads-frontend-pipeline:create-pull-request",
-    "skill:plugin:nestads-frontend-pipeline:e2e-test-gen",
-    "skill:plugin:nestads-frontend-pipeline:epic-frontend-splitter",
-    "skill:plugin:nestads-frontend-pipeline:feature-planner",
-    "skill:plugin:nestads-frontend-pipeline:figma-jira-prd",
-    "skill:plugin:nestads-frontend-pipeline:quick-fix",
-    "skill:plugin:nestads-frontend-pipeline:refactor",
-    "agent:plugin:nestads-frontend-pipeline:architect",
-    "agent:plugin:nestads-frontend-pipeline:code-reviewer",
-    "agent:plugin:nestads-frontend-pipeline:executor",
-    "agent:plugin:nestads-frontend-pipeline:vitest-test-engineer",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-generator",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-healer",
-    "agent:plugin:nestads-frontend-pipeline:playwright-test-planner"
+    "skill:plugin:web-pipeline:api-integration",
+    "skill:plugin:web-pipeline:branch-from-ticket",
+    "skill:plugin:web-pipeline:code-review",
+    "skill:plugin:web-pipeline:code-writer",
+    "skill:plugin:web-pipeline:component-audit",
+    "skill:plugin:web-pipeline:conventions",
+    "skill:plugin:web-pipeline:coverage-report",
+    "skill:plugin:web-pipeline:create-pull-request",
+    "skill:plugin:web-pipeline:e2e-test-gen",
+    "skill:plugin:web-pipeline:epic-frontend-splitter",
+    "skill:plugin:web-pipeline:feature-planner",
+    "skill:plugin:web-pipeline:figma-jira-prd",
+    "skill:plugin:web-pipeline:quick-fix",
+    "skill:plugin:web-pipeline:refactor",
+    "agent:plugin:web-pipeline:architect",
+    "agent:plugin:web-pipeline:code-reviewer",
+    "agent:plugin:web-pipeline:executor",
+    "agent:plugin:web-pipeline:vitest-test-engineer",
+    "agent:plugin:web-pipeline:playwright-test-generator",
+    "agent:plugin:web-pipeline:playwright-test-healer",
+    "agent:plugin:web-pipeline:playwright-test-planner"
    ],
-   "evidence": "작업 설명서 14개와 에이전트 7개, 합쳐서 21개를 한 번도 안 불렀어요. 목록이 대화마다 A4 약 1쪽을 차지해요."
+   "evidence": "작업 설명서 14개와 에이전트 7개, 합쳐서 21개를 한 번도 안 불렀어요. 목록이 대화마다 A4 약 1쪽을 차지해요.",
+   "gain": {
+    "text": "대화마다 A4 약 1쪽이 줄어요",
+    "upTo": false,
+    "tokens": 1465
+   }
   },
   {
    "id": "f-unused-plugin-vercel",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "mechanical",
    "steps": [
     "Vercel을 안 쓰는 PC라면 플러그인을 꺼 두세요."
    ],
@@ -12967,12 +12984,17 @@
     "agent:plugin:vercel:performance-optimizer",
     "hook:plugin:vercel:sessionstart: session-start-seen-skills.mjs"
    ],
-   "evidence": "작업 설명서 14개와 에이전트 3개, 자동 실행 규칙 1개를 한 번도 안 불렀어요."
+   "evidence": "작업 설명서 14개와 에이전트 3개, 자동 실행 규칙 1개를 한 번도 안 불렀어요.",
+   "gain": {
+    "text": "대화마다 A4 약 1쪽이 줄어요",
+    "upTo": false,
+    "tokens": 1165
+   }
   },
   {
    "id": "f-unused-plugin-slack",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "mechanical",
    "steps": [
     "Slack 연결이 필요 없다면 플러그인을 꺼 두세요."
    ],
@@ -12993,7 +13015,12 @@
     "skill:plugin:slack:slack-search",
     "mcp:plugin:slack:slack"
    ],
-   "evidence": "작업 설명서 8개와 연결된 서비스 1개를 한 번도 안 썼어요."
+   "evidence": "작업 설명서 8개와 연결된 서비스 1개를 한 번도 안 썼어요.",
+   "gain": {
+    "text": "대화마다 A4 1쪽 미만이 줄어요",
+    "upTo": false,
+    "tokens": 549
+   }
   },
   {
    "id": "f-slow-hook",
@@ -13016,7 +13043,7 @@
   {
    "id": "f-dup-rule",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요."
    ],
@@ -13028,14 +13055,19 @@
    "fix": "한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요.",
    "items": [
     "instruction:user::claude.md",
-    "memory:project:lash:feedback_preferences"
+    "memory:project:notes:style_preferences"
    ],
-   "evidence": "정규화한 같은 줄 4개가 2곳에서 발견됐어요 (각 25자 이상)."
+   "evidence": "정규화한 같은 줄 4개가 2곳에서 발견됐어요 (각 25자 이상).",
+   "gain": {
+    "text": "겹치는 줄 4개가 한 곳으로 모여요",
+    "upTo": true,
+    "count": 4
+   }
   },
   {
    "id": "f-broken-link",
    "category": "leak",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요."
    ],
@@ -13046,14 +13078,19 @@
    "why": "목차에는 있는데 파일이 없으면 AI가 읽으려다 실패하거나, 이미 없는 내용을 있다고 믿을 수 있어요.",
    "fix": "없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요.",
    "items": [
-    "memory-index:project:lash:memory.md"
+    "memory-index:project:notes:memory.md"
    ],
-   "evidence": "project_haru_life_sim.md, reference_figma_pat.md 를 찾지 못했어요."
+   "evidence": "project_old_notes.md, reference_old_keys.md 를 찾지 못했어요.",
+   "gain": {
+    "text": "끊긴 링크 2곳이 없어져요",
+    "upTo": true,
+    "count": 2
+   }
   },
   {
    "id": "f-missing-desc",
    "category": "confusion",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "파일 맨 위의 description 에 언제 쓰는 에이전트인지 한 문장으로 적어 주세요."
    ],
@@ -13066,7 +13103,12 @@
    "items": [
     "agent:user::db-migrator"
    ],
-   "evidence": "description 이 비어 있어요."
+   "evidence": "description 이 비어 있어요.",
+   "gain": {
+    "text": "AI가 알맞은 것을 고르기 쉬워져요",
+    "upTo": true,
+    "count": 1
+   }
   },
   {
    "id": "f-dup-name",
@@ -13083,14 +13125,14 @@
    "fix": "쓰지 않는 쪽 플러그인을 끄거나 이름을 바꿔 주세요.",
    "items": [
     "skill:plugin:code-review:code-review",
-    "skill:plugin:nestads-frontend-pipeline:code-review"
+    "skill:plugin:web-pipeline:code-review"
    ],
-   "evidence": "code-review 플러그인과 nestads-frontend-pipeline 플러그인에 같은 이름이 있어요."
+   "evidence": "code-review 플러그인과 web-pipeline 플러그인에 같은 이름이 있어요."
   },
   {
    "id": "f-unused-items",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "mechanical",
    "steps": [
     "자주 안 쓰는 것은 플러그인 설정에서 빼 보세요. 꼭 지울 필요는 없어요."
    ],
@@ -13106,36 +13148,46 @@
     "skill:plugin:superpowers:dispatching-parallel-agents",
     "skill:plugin:superpowers:finishing-a-development-branch"
    ],
-   "evidence": "10개 중 4개가 한 달 동안 0번이에요."
+   "evidence": "10개 중 4개가 한 달 동안 0번이에요.",
+   "gain": {
+    "text": "대화마다 A4 1쪽 미만이 줄어요",
+    "upTo": false,
+    "tokens": 290
+   }
   },
   {
    "id": "f-unused-items-backend",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "mechanical",
    "steps": [
     "백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요."
    ],
-   "prompt": "nestads-backend-pipeline에서 한 달 동안 안 쓴 것 7개. 백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요.",
+   "prompt": "api-pipeline에서 한 달 동안 안 쓴 것 7개. 백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요.",
    "rule": "unused-items",
    "severity": "low",
-   "title": "nestads-backend-pipeline에서 한 달 동안 안 쓴 것 7개",
+   "title": "api-pipeline에서 한 달 동안 안 쓴 것 7개",
    "why": "안 쓰는 항목도 목록 한 줄씩은 대화마다 읽혀요.",
    "fix": "백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요.",
    "items": [
-    "skill:plugin:nestads-backend-pipeline:implement",
-    "skill:plugin:nestads-backend-pipeline:code-writer",
-    "skill:plugin:nestads-backend-pipeline:pr-description",
-    "skill:plugin:nestads-backend-pipeline:reverse-merge",
-    "skill:plugin:nestads-backend-pipeline:test-writer",
-    "agent:plugin:nestads-backend-pipeline:implement-agent",
-    "agent:plugin:nestads-backend-pipeline:code-writer-agent"
+    "skill:plugin:api-pipeline:implement",
+    "skill:plugin:api-pipeline:code-writer",
+    "skill:plugin:api-pipeline:pr-description",
+    "skill:plugin:api-pipeline:reverse-merge",
+    "skill:plugin:api-pipeline:test-writer",
+    "agent:plugin:api-pipeline:implement-agent",
+    "agent:plugin:api-pipeline:code-writer-agent"
    ],
-   "evidence": "9개 중 7개가 한 달 동안 0번이에요."
+   "evidence": "9개 중 7개가 한 달 동안 0번이에요.",
+   "gain": {
+    "text": "대화마다 A4 1쪽 미만이 줄어요",
+    "upTo": false,
+    "tokens": 486
+   }
   },
   {
    "id": "f-long-skill",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "자주 쓰는 부분만 본문에 두고, 나머지는 따로 파일로 떼어 필요할 때만 읽게 해 보세요."
    ],
@@ -13153,7 +13205,7 @@
   {
    "id": "f-near-limit",
    "category": "waste",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "오래된 메모리를 정리하거나 한 줄 설명을 줄여 두세요."
    ],
@@ -13164,14 +13216,14 @@
    "why": "200줄을 넘으면 그 뒤는 AI가 읽지 못해요. 새 메모리가 늘면 곧 넘을 수 있어요.",
    "fix": "오래된 메모리를 정리하거나 한 줄 설명을 줄여 두세요.",
    "items": [
-    "memory-index:project:nestads-frontend:memory.md"
+    "memory-index:project:web-app:memory.md"
    ],
    "evidence": "지금 186줄이에요 (한도 200줄)."
   },
   {
    "id": "f-orphan",
    "category": "leak",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요."
    ],
@@ -13182,15 +13234,20 @@
    "why": "목차에도 없고 다른 메모리에서도 연결되지 않으면 AI가 이 파일이 있는 줄 모를 수 있어요.",
    "fix": "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요.",
    "items": [
-    "memory:project:lash:reference_token_rotation",
-    "memory:project:lash:project_krxdata_validation_method"
+    "memory:project:notes:reference_key_rotation",
+    "memory:project:notes:project_backtest_checks"
    ],
-   "evidence": "MEMORY.md와 다른 메모리 어디에도 연결이 없어요."
+   "evidence": "MEMORY.md와 다른 메모리 어디에도 연결이 없어요.",
+   "gain": {
+    "text": "길 없는 파일 2개가 줄어요",
+    "upTo": true,
+    "count": 2
+   }
   },
   {
    "id": "f-similar",
    "category": "confusion",
-   "fixKind": "manual",
+   "fixKind": "claude",
    "steps": [
     "각각 언제 쓰는지 서로 다른 단어로 구분해서 적어 주세요."
    ],
@@ -13204,39 +13261,376 @@
     "skill:plugin:figma:figma-design-to-code",
     "skill:plugin:figma:figma-generate-design"
    ],
-   "evidence": "설명에 쓴 단어 중 62퍼센트가 같아요."
+   "evidence": "설명에 쓴 단어 중 62퍼센트가 같아요.",
+   "gain": {
+    "text": "AI가 알맞은 것을 고르기 쉬워져요",
+    "upTo": true,
+    "count": 1
+   }
+  },
+  {
+   "id": "f-unread",
+   "category": "leak",
+   "fixKind": "mechanical",
+   "steps": [
+    "더 쓸 일이 없는 파일은 보관 폴더로 옮겨 두세요."
+   ],
+   "prompt": "이어져 있지만 한 달 동안 안 읽힌 메모리 파일 3개. 더 쓸 일이 없는 파일은 보관 폴더로 옮겨 두세요.",
+   "rule": "unread-md",
+   "severity": "low",
+   "title": "이어져 있지만 한 달 동안 안 읽힌 메모리 파일 3개",
+   "why": "목차에는 있지만 한 번도 읽히지 않았어요. 오래된 내용이면 목차 줄만 자리를 차지해요.",
+   "fix": "더 쓸 일이 없는 파일은 보관 폴더로 옮겨 두세요.",
+   "items": [
+    "memory:project:notes:data_source_routing",
+    "memory:project:notes:project_foldable_policy",
+    "memory:project:notes:project_stock_scoring"
+   ],
+   "evidence": "notes 메모리 폴더에서 목차에 있는 18개 중 3개가 한 달 동안 0번 읽혔어요.",
+   "gain": {
+    "text": "안 읽히던 파일 3개를 정리해요",
+    "upTo": false,
+    "count": 3
+   }
+  },
+  {
+   "id": "f-secret",
+   "category": "risk",
+   "fixKind": "manual",
+   "steps": [
+    "reference_key_rotation.md 를 열어요.",
+    "12번째 줄의 값을 지워요.",
+    "이미 다른 곳에 올렸다면 해당 서비스에서 값을 새로 발급받아요."
+   ],
+   "prompt": "메모리 파일 1개에 토큰이나 키로 보이는 값이 적혀 있어요. 값을 파일에서 지우고, 이미 노출됐다면 새 값으로 바꿔 주세요.",
+   "rule": "secret-in-file",
+   "severity": "high",
+   "title": "메모리 파일 1개에 토큰이나 키로 보이는 값이 적혀 있어요",
+   "why": "Claude가 이 파일을 읽으면 그 값이 대화 기록에도 남아요. 값은 이 앱도 보여 주지 않아요.",
+   "fix": "값을 파일에서 지우고, 이미 노출됐다면 새 값으로 바꿔 주세요.",
+   "items": [
+    "memory:project:notes:reference_key_rotation"
+   ],
+   "evidence": "reference_key_rotation.md 12번째 줄에 키로 보이는 값이 있어요."
   }
  ],
  "graph": {
-  "entries": [],
-  "nodes": [],
-  "edges": []
+  "entries": [
+   "instruction:user::claude.md",
+   "instruction:project:web-app:claude.md",
+   "instruction:project:claude-checkup:agents.md",
+   "memory-index:project:notes:memory.md",
+   "memory-index:project:web-app:memory.md"
+  ],
+  "nodes": [
+   {
+    "id": "instruction:user::claude.md",
+    "depth": 0,
+    "folder": "~/.claude",
+    "read30": 0
+   },
+   {
+    "id": "instruction:project:web-app:claude.md",
+    "depth": 0,
+    "folder": "C:/work/web-app",
+    "read30": 0
+   },
+   {
+    "id": "instruction:project:claude-checkup:agents.md",
+    "depth": 0,
+    "folder": "C:/work/claude-checkup",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:profile_basics",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 9
+   },
+   {
+    "id": "memory:project:notes:style_preferences",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 6
+   },
+   {
+    "id": "memory:project:notes:handoff_rules",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 3
+   },
+   {
+    "id": "memory:project:notes:rework_causes",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 4
+   },
+   {
+    "id": "memory:project:notes:wiki_layout",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 1
+   },
+   {
+    "id": "memory:project:notes:code_lookup_tips",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 2
+   },
+   {
+    "id": "memory:project:notes:data_source_routing",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:explain_before_agree",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 5
+   },
+   {
+    "id": "memory:project:notes:project_knowledge_cache",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 12
+   },
+   {
+    "id": "memory:project:notes:project_test_hub",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 2
+   },
+   {
+    "id": "memory:project:notes:project_foldable_policy",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:project_delivery_priority",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 1
+   },
+   {
+    "id": "memory:project:notes:project_stock_scoring",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:project_backtest_checks",
+    "depth": null,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:reference_code_index",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 7
+   },
+   {
+    "id": "memory:project:notes:reference_feature_doc_index",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 2
+   },
+   {
+    "id": "memory:project:notes:reference_key_rotation",
+    "depth": null,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:notes:reference_service_path_fix",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 1
+   },
+   {
+    "id": "memory:project:web-app:component_reuse",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work-web-app/memory",
+    "read30": 3
+   },
+   {
+    "id": "memory:project:web-app:project_list_layout",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work-web-app/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory:project:web-app:reference_test_setup",
+    "depth": 1,
+    "folder": "~/.claude/projects/C--work-web-app/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory-index:project:notes:memory.md",
+    "depth": 0,
+    "folder": "~/.claude/projects/C--work/memory",
+    "read30": 0
+   },
+   {
+    "id": "memory-index:project:web-app:memory.md",
+    "depth": 0,
+    "folder": "~/.claude/projects/C--work-web-app/memory",
+    "read30": 0
+   }
+  ],
+  "edges": [
+   {
+    "from": "instruction:user::claude.md",
+    "to": "memory:project:notes:style_preferences",
+    "kind": "link"
+   },
+   {
+    "from": "memory:project:notes:rework_causes",
+    "to": "memory:project:notes:explain_before_agree",
+    "kind": "link"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:profile_basics",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:style_preferences",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:handoff_rules",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:rework_causes",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:wiki_layout",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:code_lookup_tips",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:data_source_routing",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:explain_before_agree",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:project_knowledge_cache",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:project_test_hub",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:project_foldable_policy",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:project_delivery_priority",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:project_stock_scoring",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:reference_code_index",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:reference_feature_doc_index",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:notes:memory.md",
+    "to": "memory:project:notes:reference_service_path_fix",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:web-app:memory.md",
+    "to": "memory:project:web-app:component_reuse",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:web-app:memory.md",
+    "to": "memory:project:web-app:project_list_layout",
+    "kind": "index"
+   },
+   {
+    "from": "memory-index:project:web-app:memory.md",
+    "to": "memory:project:web-app:reference_test_setup",
+    "kind": "index"
+   }
+  ]
  },
  "leaks": {
-  "unreachable": 0,
-  "brokenLinks": 0,
-  "unread": 0,
-  "unusedTokens": 0
+  "unreachable": 2,
+  "brokenLinks": 2,
+  "unread": 5,
+  "unusedTokens": 5361
  },
  "summary": {
   "at": "2026-11-01T06:20:00.000Z",
-  "totalTokens": 31180,
-  "unusedTokens": 5377,
+  "totalTokens": 31156,
+  "unusedTokens": 5361,
   "leaks": {
-   "unreachable": 0,
-   "brokenLinks": 0,
-   "unread": 0,
-   "unusedTokens": 0
+   "unreachable": 2,
+   "brokenLinks": 2,
+   "unread": 5,
+   "unusedTokens": 5361
   },
   "byCategory": {
-   "risk": 0,
+   "risk": 1,
    "broken": 2,
-   "leak": 2,
+   "leak": 3,
    "waste": 9,
    "confusion": 3
   }
  },
+ "previous": {
+  "at": "2026-10-23T06:20:00.000Z",
+  "totalTokens": 35356,
+  "unusedTokens": 8961,
+  "leaks": {
+   "unreachable": 5,
+   "brokenLinks": 2,
+   "unread": 6,
+   "unusedTokens": 8961
+  },
+  "byCategory": {
+   "risk": 1,
+   "broken": 2,
+   "leak": 4,
+   "waste": 11,
+   "confusion": 3
+  }
+ },
  "warnings": [
-  "C:/lash/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."
+  "C:/work/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."
  ]
 }

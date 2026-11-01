@@ -6,6 +6,10 @@
 //   ?mock=error      점검 실패 화면
 //   ?mock=empty      .claude 폴더가 없는 화면
 //   ?mock=consent    첫 실행 동의 화면
+//   ?mock=first      첫 검진 (지난 점검 요약 없음)
+//   ?mock=norisk     위험 진단 없음
+//   ?mock=clean      진단이 하나도 없는 깨끗한 설정 (손볼 곳 0)
+//   ?mock=risk-only  위험만 있고 할 일은 없음
 // 화면의 "다시 점검" 을 누르면 약 5초 동안 진행률 화면이 나온다.
 import { join } from "node:path";
 import type { Item, Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
@@ -42,6 +46,20 @@ function emptySnapshot(): Snapshot {
   };
 }
 
+// 첫 화면 상태 확인용: 같은 가짜 데이터에서 일부만 걷어 낸다
+function variant(mock: string | null): Snapshot {
+  const strip = (findings: Snapshot["findings"]): Snapshot => ({
+    ...fixture,
+    findings,
+    items: fixture.items.map((i) => ({ ...i, findings: i.findings.filter((id) => findings.some((f) => f.id === id)) })),
+  });
+  if (mock === "first") return { ...fixture, previous: undefined };
+  if (mock === "norisk") return strip(fixture.findings.filter((f) => f.category !== "risk"));
+  if (mock === "risk-only") return strip(fixture.findings.filter((f) => f.category === "risk"));
+  if (mock === "clean") return { ...strip([]), previous: undefined };
+  return fixture;
+}
+
 function bodyFor(it: Item): string {
   const fm = ["skill", "agent", "command"].includes(it.kind) ? `---\nname: ${it.name}\ndescription: ${it.summary}\n---\n\n` : "";
   const heads = it.outline.length ? it.outline : ["개요"];
@@ -69,7 +87,7 @@ const routes = {
     if (mock === "error") return json({ error: "~/.claude 폴더를 읽는 중에 권한 문제가 생겼어요. 폴더 권한을 확인한 뒤 다시 점검해 주세요." }, 500);
     const p = progressNow(req);
     if (p.phase !== "done") return json(p, 404);
-    return json(mock === "empty" ? emptySnapshot() : fixture);
+    return json(mock === "empty" ? emptySnapshot() : variant(mock));
   },
 
   "/api/progress": (req: Request) => json(progressNow(req)),
@@ -119,4 +137,4 @@ try {
   server = start(0); // 기본 포트가 쓰이고 있으면 아무 포트나 쓴다
 }
 console.log(`화면 개발 서버: ${server.url}`);
-console.log("  상태 확인: ?mock=scanning | error | empty | consent");
+console.log("  상태 확인: ?mock=scanning | error | empty | consent | first | norisk | clean | risk-only");

@@ -18,6 +18,7 @@
   align-content: start;
 }
 .page > * { min-width: 0; }
+.page { overflow-x: clip; } /* 안 보이는 용어 설명이 가로 스크롤을 만들지 않게 */
 .page-narrow { max-width: calc(var(--space-7) * 14); }
 
 .meta {
@@ -358,6 +359,113 @@
 .scroll-hint { display: none; }
 
 /* ------------------------------------------------------------------
+   검진 결과지 (첫 화면)
+   ------------------------------------------------------------------ */
+.verdict { display: grid; gap: var(--space-2); }
+.verdict .big {
+  color: var(--color-text-strong);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-tight);
+}
+.verdict .big em { font-style: normal; color: var(--color-brand-text); }
+.section-title {
+  margin-bottom: var(--space-3);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-subtitle);
+  line-height: var(--line-height-tight);
+}
+.sub { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+.acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.risk { display: grid; gap: var(--space-3); background: var(--color-danger-tint); border-radius: var(--radius-xl); padding: var(--space-5); }
+.risk h2 { color: var(--color-danger); font-size: var(--font-size-subtitle); font-weight: var(--font-weight-subtitle); line-height: var(--line-height-tight); }
+.risk-row { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--color-surface); border-radius: var(--radius-lg); }
+.risk-title { color: var(--color-text-strong); font-size: var(--font-size-body-small); font-weight: 600; overflow-wrap: anywhere; }
+.risk-row .steps { background: var(--color-canvas); }
+
+.todo-list { display: grid; gap: var(--space-3); }
+.todo { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2) var(--space-4); align-items: start; }
+.todo .btn-secondary { background: var(--color-surface); }
+.todo .btn-secondary:hover { background: var(--color-brand-tint); }
+.todo .num {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.todo-body { display: grid; gap: var(--space-2); min-width: 0; }
+.todo-title {
+  color: var(--color-text-strong);
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-subtitle);
+  line-height: var(--line-height-tight);
+  overflow-wrap: anywhere;
+}
+.gain { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-success); font-size: var(--font-size-body-small); font-weight: 600; }
+.gain .badge { flex: none; }
+.steps { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--color-surface); border-radius: var(--radius-lg); }
+.steps ol { display: grid; gap: var(--space-2); padding-left: var(--space-5); list-style: decimal; font-size: var(--font-size-body-small); color: var(--color-text-default); }
+.steps li { overflow-wrap: anywhere; }
+.dialog .steps { background: var(--color-canvas); }
+
+.compare {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-body-small);
+}
+.compare.has-prev { border-style: solid; border-color: var(--color-border); }
+.compare-title { color: var(--color-text-strong); font-size: var(--font-size-body); font-weight: 600; }
+.compare-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-7) * 4)), 1fr)); gap: var(--space-3); margin: 0; }
+.compare-item { display: grid; gap: var(--space-1); min-width: 0; }
+.compare-item dt { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+.compare-item dd { margin: 0; display: grid; gap: var(--space-1); }
+.compare-item b { color: var(--color-text-strong); font-size: var(--font-size-subtitle); font-variant-numeric: tabular-nums; }
+.compare-item span { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+.compare-item .good b { color: var(--color-success); }
+.compare-item .cost b { color: var(--color-warning); }
+.more { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* 용어 설명 */
+.term-tip {
+  position: relative;
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+}
+.term-tip .tip {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  bottom: calc(100% + var(--space-1));
+  width: calc(var(--space-7) * 5);
+  max-width: calc(100vw - var(--space-4) * 2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-float); /* 떠 있는 요소 */
+  color: var(--color-text-default);
+  font-size: var(--font-size-body-small);
+  font-weight: 400;
+  line-height: var(--line-height-body);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease);
+}
+.term-tip:hover .tip, .term-tip:focus .tip { visibility: visible; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .term-tip .tip { transition: none; } }
+
+/* ------------------------------------------------------------------
    9. 좁은 화면
    ------------------------------------------------------------------ */
 @media (max-width: 640px) {
@@ -365,6 +473,8 @@
   .top-actions { flex-basis: 100%; justify-content: flex-start; }
   .search { max-width: none; flex-basis: 100%; }
   .card { padding: var(--space-4); }
+  .risk { padding: var(--space-4); }
+  .verdict .big { font-size: var(--font-size-subtitle); }
   .summary-lead { font-size: var(--font-size-body); }
   .scroll-hint { display: inline; }
 }
