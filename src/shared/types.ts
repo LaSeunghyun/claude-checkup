@@ -254,7 +254,7 @@ export interface TelemetryEvent {
 // GET  /api/progress           -> Progress
 // GET  /api/item-body?id=      -> { id: string; body: string } (비밀 파일은 403)
 // GET  /api/settings           -> Settings
-// POST /api/settings           -> Settings   body: { telemetry: "on" | "off" }
+// POST /api/settings           -> Settings   body: { telemetry: "on" | "off" } | { claudeFix: "agreed" }
 // POST /api/reveal            -> 204          body: { id }  그 항목 파일을 탐색기에서 연다
 // GET  /api/telemetry-preview  -> TelemetryEvent (보낼 내용 그대로)
 // POST /api/telemetry          -> 204          body: { event, view? }  서버가 나머지 필드를 채워 보낸다
