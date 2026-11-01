@@ -135,7 +135,7 @@ md 문서가 AI에게 닿는 길을 그래프로 본다.
 
 | 규칙 | 분류 | 조건 | 심각도 |
 |---|---|---|---|
-| secret-in-file | 위험 | 읽는 md·설정 파일에 토큰·키로 보이는 값(redactSecrets 가 가리는 꼴)이 있음. 파일과 줄 번호만 남기고 값은 저장하지 않는다 | 높음 |
+| secret-in-file | 위험 | 개인·프로젝트 md 파일(지시문, 메모리, 작업 설명서, 명령, 에이전트)에 토큰·키로 보이는 값(redactSecrets 가 가리는 꼴)이 있음. 플러그인 파일은 사용자가 고칠 수 없고 대개 예시 값이라 뺀다. 파일과 줄 번호만 남기고 값은 저장하지 않는다 | 높음 |
 | memory-index-truncated | 고장 | MEMORY.md 가 200줄 초과 | 높음 |
 | failing-hook | 고장 | 기록에 남은 실패 3번 이상이면 높음, 1~2번이면 중간 | 높음·중간 |
 | broken-link | 연결 누수 | 6절 끊긴 링크 | 중간 |
@@ -194,10 +194,10 @@ md 문서가 AI에게 닿는 길을 그래프로 본다.
 
 - 쓰기 범위: `C` 안 파일만, `C/plugins` 아래는 제외. 경로 기준 루트는 `C` 다(임시 폴더, 백업, manifest 모두 `C` 기준 상대 경로).
 - 대상 파일(메모리 작업이면 그 메모리 폴더 전체)을 임시 폴더에 같은 상대 경로로 복사한다. 이름이 비밀 꼴인 파일과 본문에 비밀값이 있는 파일은 복사하지 않는다. 고칠 대상 파일 자체에 비밀값이 있으면 그 고치기는 manual 로 바꾸고 secret-in-file 을 먼저 해결하라고 안내한다.
-- 임시 폴더를 작업 폴더로 `claude -p` 를 실행한다: `--permission-mode acceptEdits`, `--allowedTools Read Edit Write Glob Grep`, `--disallowedTools Bash`, `--no-session-persistence`, `--output-format json`, 적당한 `--max-turns`.
+- 임시 폴더를 작업 폴더로 `claude -p` 를 실행한다: `--restricted`(파일 도구를 작업 폴더 안으로 가두고 사용자 설정을 읽지 않음), `--strict-mcp-config`, `--tools Read,Edit,Write,Glob,Grep`, `--disallowedTools Bash`, `--permission-mode acceptEdits`, `--no-session-persistence`, `--output-format json`, `--settings`(disableAllHooks), 적당한 `--max-turns`. 요청문은 명령줄이 아니라 stdin 으로 보낸다. 실행 뒤 Claude Code 가 `~/.claude/projects` 에 만드는 빈 폴더는 지운다.
 - 요청문은 진단의 `prompt` 를 임시 폴더 경로 기준으로 바꾼 것이다. 비밀값은 싣지 않는다.
 - 끝나면 임시 폴더와 원본을 비교해 바뀐 파일과 줄(diff)을 만든다. 임시 폴더 밖이나 대상 밖 파일이 바뀌었으면 그 안은 버리고 경고한다.
-- `--bare` 는 API 키 로그인만 지원해 구독 사용자가 못 쓰므로 쓰지 않는다. 사용자의 훅이 함께 돌 수 있다. 훅을 끄는 설정 주입이 가능한지는 빌드 때 확인한다(9절).
+- `--bare` 는 API 키 로그인만 지원해 구독 사용자가 못 쓰므로 쓰지 않는다. 실측(2026-11-01): `--restricted` 로 작업 폴더 밖 읽기·쓰기가 막히고, 1회 비용이 약 0.55달러에서 0.01~0.04달러로 줄었다.
 - `claude` 가 없거나 로그인돼 있지 않거나 실패하면, 미리 보기 대신 지금의 "Claude에게 맡길 말 복사"와 "직접 하는 순서"를 보여 준다.
 - 처음 `claude` 고치기를 쓸 때 "이 기능은 해당 파일 내용을 Claude에게 보내요. 평소 Claude Code를 쓸 때와 같아요"를 알리고 동의를 받는다. 설정에 저장한다.
 - 실행 전 예상 사용량(대상 파일 크기 기반 추정)을 보여 주고, 끝나면 json 출력의 실제 사용량을 보여 준다.
