@@ -159,17 +159,13 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
     const cliKeys: string[] = [];
     for (const k of p.pluginKeys) {
       let code = 1;
-      if (runClaude) {
-        try {
-          code = await runClaude(["plugin", "disable", k]);
-        } catch {
-          code = 1;
-        }
-      }
-      if (code === 0) cliKeys.push(k);
-      else allByCli = false;
+      if (runClaude) code = await runClaude(["plugin", "disable", k]); // 예외는 적용 실패로 본다. 0 이 아닌 값만 설정 파일로 대신한다
+      if (code === 0) {
+        cliKeys.push(k);
+        m.cliKeys = [...cliKeys];
+        writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2)); // 죽어도 되돌릴 수 있게 바로 남긴다
+      } else allByCli = false;
     }
-    if (cliKeys.length) m.cliKeys = cliKeys;
     if (!allByCli) {
       for (const w of p.writes) {
         if (w.content === null) rmSync(w.abs, { force: true });
@@ -180,6 +176,12 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
       move(mv.from, mv.to);
     }
   } catch (e) {
+    for (const k of m.cliKeys ?? []) {
+      if (!runClaude) break;
+      try {
+        await runClaude(["plugin", "enable", k]);
+      } catch {}
+    }
     restore(home, m); // 반영 도중 실패하면 원래대로 돌리고 알린다
     m.status = "failed";
     writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2));

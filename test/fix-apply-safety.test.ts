@@ -97,6 +97,44 @@ describe("적용 실패와 중단", () => {
   });
 });
 
+describe("CLI 로 끈 플러그인의 복구", () => {
+  test("A 를 끈 뒤 B 에서 예외가 나면 A 를 다시 켜고 settings.json 은 그대로", async () => {
+    const before = readFileSync(settings(), "utf8");
+    const calls: string[][] = [];
+    const run = async (a: string[]) => {
+      calls.push(a);
+      if (a[1] === "disable" && a[2] === KEY) throw new Error("boom");
+      return 0;
+    };
+    await expect(applyPlanned(home, planPluginsOff(home, ["plugin-a@mkt", KEY]), "x", run)).rejects.toThrow("boom");
+    expect(calls).toContainEqual(["plugin", "enable", "plugin-a@mkt"]);
+    expect(readFileSync(settings(), "utf8")).toBe(before);
+    expect(listBackups(home)).toEqual([]);
+  });
+
+  test("applying 기록이 cliKeys 를 담고 있으면 undo 가 enable 한다", async () => {
+    const m = await applyPlanned(home, planPluginsOff(home, [KEY]), "x", async () => 0);
+    const mf = readManifest(m.id);
+    mf.status = "applying";
+    expect(mf.cliKeys).toEqual([KEY]);
+    writeFileSync(manifestPath(m.id), JSON.stringify(mf));
+    const calls: string[][] = [];
+    const r = await undo(home, m.id, async (a) => (calls.push(a), 0));
+    expect(r.ok).toBe(true);
+    expect(calls).toEqual([["plugin", "enable", KEY]]);
+  });
+
+  test("키 하나를 끌 때마다 manifest 에 바로 남는다", async () => {
+    let seen: string[] | undefined;
+    const run = async (a: string[]) => {
+      if (a[2] === KEY) seen = readManifest(readdirSync(backupsDir(home))[0]).cliKeys;
+      return 0;
+    };
+    await applyPlanned(home, planPluginsOff(home, ["plugin-a@mkt", KEY]), "x", run);
+    expect(seen).toEqual(["plugin-a@mkt"]);
+  });
+});
+
 describe("링크와 임시 파일", () => {
   test("링크로 연결된 폴더 안은 옮기지 않고, 링크 자체도 거부한다", async () => {
     const outside = join(dir, "dotfiles");
