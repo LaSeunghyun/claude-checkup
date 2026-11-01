@@ -51,7 +51,7 @@ describe("텍스트 도구", () => {
   });
   test("메모리 링크는 코드 안과 외부 주소를 건너뛴다", () => {
     const t = "[a](x.md) [b](https://e.com/y.md) [[wiki]] `[c](z.md)` [d](#anchor)\n```\n[e](w.md)\n```";
-    expect(memoryLinks(t)).toEqual(["x.md", "wiki"]);
+    expect(memoryLinks(t)).toEqual({ md: ["x.md"], wiki: ["wiki"] });
   });
 });
 
@@ -91,7 +91,14 @@ describe("목록 만들기", () => {
     expect(snap.items.filter((i) => i.kind === "skill" && i.source.type === "user")).toHaveLength(7);
     expect(find("command:user::hello").summary).toBe("Say hello to the user in a friendly way.");
     expect(find("agent:user::reviewer").enabled).toBe(true);
-    expect(snap.items.filter((i) => i.source.type === "builtin").map((i) => i.name).sort()).toEqual(["Explore", "Plan", "claude-code-guide", "general-purpose", "statusline-setup"]);
+    expect(snap.items.filter((i) => i.source.type === "builtin" && i.kind === "agent").map((i) => i.name).sort()).toEqual(["Explore", "Plan", "claude-code-guide", "general-purpose", "statusline-setup"]);
+  });
+  test("기록에만 있는 작업 설명서는 기록에만 있음 항목으로 만들고, 없는 플러그인 이름은 만들지 않는다", () => {
+    const b = find("skill:history::not-installed");
+    expect(b.usage.count30).toBe(1);
+    expect(b.alwaysLoaded).toBeNull();
+    expect(snap.items.some((i) => i.name.includes("gone-plugin") || i.name === "old")).toBe(false);
+    expect(snap.findings.flatMap((f) => f.items)).not.toContain(b.id);
   });
   test("frontmatter 의 description 이 요약이고 H2 가 개요다", () => {
     const g = find("skill:user::good-skill");
@@ -159,7 +166,7 @@ describe("사용량", () => {
     expect(find("skill:user::good-skill").usage.count30).toBe(4);
     expect(find("mcp:user::svc-a").usage.count30).toBe(2);
     expect(snap.stats.prompts30).toBe(6);
-    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 11 });
+    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 12 });
   });
   test("스킬 메타 줄과 도구 결과 안의 명령 이름은 세지 않는다", () => {
     expect(find("command:user::hello").usage).toMatchObject({ count30: 1, via: { user: 1 } });
@@ -201,7 +208,7 @@ describe("사용량", () => {
     const slow = find("hook:user::stop · slow-hook.mjs");
     expect(slow.hook).toMatchObject({ runs30: 2, avgMs: 8000, maxMs: 12000, failures30: 0 });
     const bad = find("hook:user::pretooluse · failing-hook.mjs");
-    expect(bad.hook).toMatchObject({ runs30: 2, failures30: 1 }); // 역슬래시 명령도 같은 훅으로
+    expect(bad.hook).toMatchObject({ runs30: 4, failures30: 3 }); // 역슬래시 명령도 같은 훅으로
     const start = find("hook:user::sessionstart · start-ok.mjs");
     expect(start.hook?.injectedCharsAvg).toBe(120);
     expect(find("hook:user::posttooluse · unrun-hook.mjs").hook?.runs30).toBe(0);
@@ -209,7 +216,7 @@ describe("사용량", () => {
   test("통계: 대화·요청·도구 호출 수", () => {
     expect(snap.stats.sessions30).toBe(2); // 본 대화 + 재개된 복사본. 하위 에이전트와 60일 전 파일 제외
     expect(snap.stats.prompts30).toBe(6); // 일반 3 + 직접 부름 3, 중단·메타·도구 결과·하위 에이전트 제외
-    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 11 });
+    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 12 });
     expect(snap.stats.transcriptsScanned).toBe(4);
     expect(snap.window.days).toBe(30);
   });
@@ -258,16 +265,27 @@ describe("진단 규칙: 모두 한 번 이상 나온다", () => {
     expect(f[0].severity).toBe("low");
     expect(f[0].items).toEqual(["memory-index:project:fx-near:memory.md"]);
   });
-  test("broken-link: 마크다운 링크와 [[위키]] 링크", () => {
+  test("broken-link: 마크다운 링크만 센다. [[위키]] 는 아직 없는 메모리 표시라 제외", () => {
     const f = rule("broken-link");
     expect(f.map((x) => x.items[0]).sort()).toEqual(["memory-index:project:fx-alpha:memory.md", "memory:project:fx-alpha:linked.md"]);
-    expect(f.find((x) => x.items[0].endsWith("linked.md"))?.evidence).toContain("ghost");
+    const linked = f.find((x) => x.items[0].endsWith("linked.md"))!;
+    expect(linked.evidence).toContain("gone.md");
+    expect(linked.evidence).not.toContain("ghost");
     expect(f.find((x) => x.items[0].includes("memory-index"))?.evidence).toContain("missing.md");
+  });
+  test("[[위키]] 링크는 대소문자, - _ 차이를 무시하고 이어진다", () => {
+    const linked = snap.items.find((x) => x.id === "memory:project:fx-alpha:linked.md")!;
+    expect(linked.links.out).toContain("memory:project:fx-alpha:secret-token-notes.md");
   });
   test("orphan-memory: 연결 안 된 파일만", () => {
     const f = rule("orphan-memory");
     expect(f).toHaveLength(1);
     expect(f[0].items).toEqual(["memory:project:fx-alpha:orphan.md"]);
+  });
+  test("MEMORY.md 에 이름만 적힌 파일은 고아가 아니고 목차와 이어진다", () => {
+    const named = snap.items.find((x) => x.id === "memory:project:fx-alpha:named-only.md")!;
+    expect(named.links.in).toContain("memory-index:project:fx-alpha:memory.md");
+    expect(rule("orphan-memory").flatMap((f) => f.items)).not.toContain(named.id);
   });
   test("duplicate-rule: 25자 이상 같은 줄이 지시문·MEMORY.md 2곳에", () => {
     const f = rule("duplicate-rule");

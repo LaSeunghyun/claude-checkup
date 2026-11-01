@@ -17,7 +17,7 @@ export interface ScanOpts {
 }
 
 const KIND_ORDER: ItemKind[] = ["instruction", "memory-index", "memory", "skill", "command", "agent", "hook", "mcp", "plugin"];
-const SOURCE_ORDER = { user: 0, project: 1, plugin: 2, builtin: 3 } as const;
+const SOURCE_ORDER = { user: 0, project: 1, plugin: 2, builtin: 3, history: 4 } as const;
 const norm = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, "_");
 
 const sourceKey = (s: Source) => `${s.type}:${s.plugin ?? s.project ?? ""}`;
@@ -67,14 +67,43 @@ function applyUsage(inv: Inventory, ux: UsageIndex) {
     reads.set(rel != null ? "c:" + rel : "p:" + slash(e.abs).toLowerCase(), e);
   }
 
+  // 기록에는 있는데 .claude 에 파일이 없는 작업 설명서·에이전트는 "기록에만 있음"(history) 항목으로 만든다.
+  // Claude Code 기본 내장일 수도, 지웠거나 이름이 바뀐 것일 수도 있어 둘을 가르지 않는다.
+  // `플러그인:이름` 꼴은 지금 없는 플러그인이라 만들지 않는다. 직접 부른 명령(U|)은 /model 같은 내장 명령이 섞여 만들지 않는다
+  const builtins = new Map<string, Entry>();
+  const builtinOf = (kind: "skill" | "agent", name: string): Entry | undefined => {
+    if (name.includes(":") || !/^[\w-]+$/.test(name)) return undefined;
+    const id = `${kind}:history::${name.toLowerCase()}`;
+    let e = builtins.get(id);
+    if (!e) {
+      const item: Item = {
+        id, kind, name, source: { type: "history" },
+        summary: "대화 기록에는 쓴 흔적이 있지만 지금 .claude 폴더에는 파일이 없어요. Claude Code에 기본으로 들어 있거나, 지웠거나, 이름이 바뀐 항목일 수 있어요.",
+        outline: [], size: { chars: 0, lines: 0, tokens: 0 }, alwaysLoaded: null, enabled: true,
+        usage: { count30: 0, countAll: 0, daily30: Array(30).fill(0) }, links: { out: [], in: [] }, findings: [],
+      };
+      builtins.set(id, (e = { item, inv: [name.toLowerCase()] }));
+      entries.push(e);
+    }
+    return e;
+  };
+
+  // 먼저 AI가 부른 이름으로 기본 제공 항목을 만들어 둬야, 같은 이름을 직접 부른 기록(U|)도 거기에 붙는다
+  for (const [key] of ux.counters) {
+    const name = key.slice(2);
+    if (key.startsWith("S|") && !skillish(name)) builtinOf("skill", name);
+    if (key.startsWith("A|") && !agentOf(name)) builtinOf("agent", name);
+  }
+  const builtinSkill = (name: string) => builtins.get(`skill:history::${name.toLowerCase()}`);
+
   for (const [key, acc] of ux.counters) {
     const tag = key.slice(0, 2);
     const name = key.slice(2);
     let target: Entry | undefined;
     let via: "user" | "model" | undefined;
-    if (tag === "S|") (target = skillish(name)), (via = "model");
-    else if (tag === "U|") (target = skillish(name)), (via = "user");
-    else if (tag === "A|") (target = agentOf(name)), (via = "model");
+    if (tag === "S|") (target = skillish(name) ?? builtinSkill(name)), (via = "model");
+    else if (tag === "U|") (target = skillish(name) ?? builtinSkill(name)), (via = "user");
+    else if (tag === "A|") (target = agentOf(name) ?? builtins.get(`agent:history::${name.toLowerCase()}`)), (via = "model");
     else if (tag === "M|") target = mcp.get(name.toLowerCase());
     else if (tag === "R|") target = reads.get(name);
     if (target) addUsage(target.item, acc, via);
@@ -154,7 +183,7 @@ function buildGroups(items: Item[]): Group[] {
     const key = single ? "group:plugin" : `group:${it.kind}:${sourceKey(s)}`.toLowerCase();
     let g = map.get(key);
     if (!g) {
-      const title = single ? "플러그인" : s.type === "user" ? "개인" : s.type === "builtin" ? "기본 제공" : s.type === "plugin" ? (s.plugin ?? "플러그인") : (s.project ?? "프로젝트");
+      const title = single ? "플러그인" : s.type === "user" ? "개인" : s.type === "builtin" ? "기본 제공" : s.type === "history" ? "기록에만 있음" : s.type === "plugin" ? (s.plugin ?? "플러그인") : (s.project ?? "프로젝트");
       map.set(key, (g = { id: key, kind: it.kind, title, source: single ? { type: "plugin" } : s, items: [] }));
     }
     g.items.push(it.id);

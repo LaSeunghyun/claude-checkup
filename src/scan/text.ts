@@ -104,7 +104,8 @@ export function stripCode(s: string): string {
 }
 
 // 메모리 링크: [제목](파일.md) 와 [[이름]]. 코드 안, 외부 주소, 앵커는 제외한다
-export function memoryLinks(text: string): string[] {
+// [[이름]] 은 Claude Code 메모리 규칙상 아직 없는 메모리를 미리 가리켜도 되는 표시라, 끊김 판정에 쓰지 않는다
+export function memoryLinks(text: string): { md: string[]; wiki: string[] } {
   const t = stripCode(text);
   const out: string[] = [];
   const re = /\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -115,9 +116,15 @@ export function memoryLinks(text: string): string[] {
     target = decodeSafe(target.split("#")[0]);
     if (/\.md$/i.test(target)) out.push(target);
   }
+  const wiki: string[] = [];
   const re2 = /\[\[([^\]\n|#]+)(?:[|#][^\]\n]*)?\]\]/g;
-  while ((m = re2.exec(t))) out.push(m[1].trim());
-  return out;
+  while ((m = re2.exec(t))) wiki.push(m[1].trim());
+  return { md: out, wiki };
+}
+
+// [[이름]] 대조용: 대소문자, .md, - _ 공백 차이를 무시한다
+export function memoryKey(s: string): string {
+  return s.toLowerCase().replace(/\.md$/, "").replace(/[-_\s]+/g, "-");
 }
 
 function decodeSafe(s: string): string {

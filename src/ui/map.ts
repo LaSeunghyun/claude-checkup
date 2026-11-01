@@ -101,7 +101,7 @@ export function buildMap(m: Model): MapSpec {
         ? { text: "잘려요", tone: "bad" }
         : longest >= 180
           ? { text: "거의 다 참", tone: "warn" }
-          : { text: a4(memIdx.reduce((s, i) => s + (i.alwaysLoaded?.tokens ?? 0), 0)), tone: "idle" };
+          : { text: a4(contextPart(m, "memory-index")?.tokens ?? 0), tone: "idle" }; // 한 대화에는 목차 하나만 실린다
 
   const failing = hooks.filter((h) => (h.hook?.failures30 ?? 0) > 0).length;
   const slow = hooks.filter((h) => (h.hook?.avgMs ?? 0) >= 3000 || (h.hook?.maxMs ?? 0) >= 10000).length;

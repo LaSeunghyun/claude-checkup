@@ -226,7 +226,7 @@ function LinkSection({ title, ids }: { title: string; ids: string[] }) {
 function BodyPanel({ item }: { item: Item }) {
   const [result, setResult] = useState<BodyResult | "loading">("loading");
   const [tries, setTries] = useState(0);
-  const skip = NO_BODY.includes(item.kind) || (item.source.type === "builtin" && !item.path);
+  const skip = NO_BODY.includes(item.kind) || ((item.source.type === "builtin" || item.source.type === "history") && !item.path);
   const live = useRef(0);
 
   useEffect(() => {
@@ -357,8 +357,8 @@ function UsagePanel({ item }: { item: Item }) {
               </dd>
             </div>
             <div>
-              <dt>한 달 동안 실행</dt>
-              <dd>{num(h.runs30)}번</dd>
+              <dt>기록에 남은 실행 (30일)</dt>
+              <dd>{num(h.runs30)}번 <span className="meta">Claude Code는 성공한 실행을 다 기록하지 않아 실제로는 더 많을 수 있어요</span></dd>
             </div>
             <div>
               <dt>평균 걸린 시간</dt>

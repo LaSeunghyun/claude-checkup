@@ -1,8 +1,8 @@
 // 항목 사이 연결: 플러그인 구성, 메모리 링크, 본문 속 이름 언급.
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { exists } from "./fsutil";
 import type { Entry, PluginEntry } from "./inventory";
-import { memoryLinks } from "./text";
+import { memoryKey, memoryLinks, stripCode } from "./text";
 
 function link(from: Entry, to: Entry) {
   if (from === to) return;
@@ -39,13 +39,37 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
 
   // 메모리 링크
   const memByPath = new Map<string, Entry>();
+  const memByKey = new Map<string, Entry>(); // `${memDir}|${memoryKey}` -> 메모리 (파일 이름과 frontmatter name 둘 다)
   for (const e of entries) {
-    if ((e.item.kind === "memory" || e.item.kind === "memory-index") && e.abs) memByPath.set(resolve(e.abs).toLowerCase(), e);
+    if ((e.item.kind === "memory" || e.item.kind === "memory-index") && e.abs) {
+      memByPath.set(resolve(e.abs).toLowerCase(), e);
+      if (e.memDir) {
+        const dir = resolve(e.memDir).toLowerCase();
+        memByKey.set(`${dir}|${memoryKey(basename(e.abs))}`, e);
+        const name = e.text?.match(/^---\r?\n[\s\S]*?^name:\s*["']?([^"'\r\n]+)/m)?.[1];
+        if (name) memByKey.set(`${dir}|${memoryKey(name.trim())}`, e);
+      }
+    }
   }
   for (const e of entries) {
     if (!e.memDir || !e.text) continue;
+    const { md, wiki } = memoryLinks(e.text);
+    const dir = resolve(e.memDir).toLowerCase();
+    for (const w of new Set(wiki)) {
+      const target = memByKey.get(`${dir}|${memoryKey(w)}`);
+      if (target) link(e, target);
+    }
+    // MEMORY.md 가 링크 없이 파일 이름만 적어 둔 경우도 목차에 있는 것으로 본다
+    if (e.item.kind === "memory-index") {
+      const plain = stripCode(e.text).toLowerCase();
+      for (const x of entries) {
+        if (x.item.kind !== "memory" || !x.abs || !x.memDir || resolve(x.memDir).toLowerCase() !== dir) continue;
+        const stem = basename(x.abs).replace(/\.md$/i, "").toLowerCase();
+        if (new RegExp(`(?<![\\w-])${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(plain)) link(e, x);
+      }
+    }
     const bad: string[] = [];
-    for (const t of new Set(memoryLinks(e.text))) {
+    for (const t of new Set(md)) {
       const cands = t.toLowerCase().endsWith(".md") ? [t] : [t + ".md", t];
       let ok = false;
       let target: Entry | undefined;

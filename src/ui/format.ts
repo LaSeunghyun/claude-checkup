@@ -99,6 +99,8 @@ export function sourceText(s: Source): string {
       return s.project ? `${s.project} 프로젝트에 있어요` : "프로젝트에 있어요";
     case "builtin":
       return "Claude Code에 처음부터 들어 있어요";
+    case "history":
+      return "대화 기록에만 있고 지금 파일은 없어요";
     default:
       return "내가 직접 만든 것이에요";
   }
@@ -113,6 +115,8 @@ export function sourceNote(s: Source): string {
       return s.project ? `프로젝트 ${s.project}` : "프로젝트 안에 있어요";
     case "builtin":
       return "Claude Code에 처음부터 들어 있어요";
+    case "history":
+      return "기본 내장이거나, 지웠거나, 이름이 바뀐 항목이에요";
     default:
       return "내가 직접 만든 것이에요";
   }
@@ -127,6 +131,7 @@ export function itemSourceName(item: Item): string {
   if (s.type === "plugin") return s.plugin ?? "플러그인";
   if (s.type === "project") return s.project ?? "프로젝트";
   if (s.type === "builtin") return "기본 제공";
+  if (s.type === "history") return "기록에만 있음";
   return "개인";
 }
 

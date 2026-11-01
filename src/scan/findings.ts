@@ -14,6 +14,7 @@ export const LONG_SKILL_CHARS = 20_000;
 export const NEAR_LIMIT_LINES = 180;
 export const SLOW_AVG_MS = 3000;
 export const SLOW_MAX_MS = 10_000;
+export const FAILING_HIGH = 3; // 기록에 남은 실패가 이 횟수 이상이면 높음
 export const MIN_DUP_CHARS = 25;
 export const SIMILAR_JACCARD = 0.5;
 
@@ -135,7 +136,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
   // duplicate-name (켜진 작업 설명서·에이전트, 출처 2곳 이상)
   const names = new Map<string, Entry[]>();
   for (const e of entries) {
-    if ((e.item.kind !== "skill" && e.item.kind !== "agent") || !e.item.enabled) continue;
+    if ((e.item.kind !== "skill" && e.item.kind !== "agent") || !e.item.enabled || (e.item.source.type === "builtin" || e.item.source.type === "history")) continue;
     const k = `${e.item.kind}:${e.item.name.toLowerCase()}`;
     (names.get(k) ?? names.set(k, []).get(k)!).push(e);
   }
@@ -143,7 +144,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     if (new Set(list.map(sourceKey)).size < 2) continue;
     const e0 = list[0];
     push("duplicate-name", "medium", {
-      title: `이름이 같은 ${kindWord(e0.item.kind)} "${e0.item.name}" 이(가) ${list.length}곳에 켜져 있어요`,
+      title: `같은 이름이 ${list.length}곳에 켜져 있어요: ${kindWord(e0.item.kind)} ${e0.item.name}`,
       why: "이름이 같으면 AI나 내가 부를 때 어느 쪽이 실행될지 헷갈릴 수 있어요.",
       fix: "안 쓰는 쪽을 끄거나 이름을 바꿔 주세요.",
       items: list.map((e) => e.item.id),
@@ -152,7 +153,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
   }
 
   // similar-description (켜진 작업 설명서끼리)
-  const skills = entries.filter((e) => e.item.kind === "skill" && e.item.enabled && !e.secret);
+  const skills = entries.filter((e) => e.item.kind === "skill" && e.item.enabled && !e.secret && e.item.source.type !== "builtin" && e.item.source.type !== "history"); // 기록에만 있는 항목은 설명이 같은 안내 문구라 뺀다
   const sets = skills.map((e) => wordSet(e.wordsSource || e.item.summary));
   const sims: { a: number; b: number; j: number }[] = [];
   for (let i = 0; i < skills.length; i++) {
@@ -168,7 +169,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     const A = skills[s.a];
     const B = skills[s.b];
     push("similar-description", "low", {
-      title: `작업 설명서 "${A.item.name}" 와(과) "${B.item.name}" 의 설명이 거의 같아요`,
+      title: `설명이 거의 같은 작업 설명서 두 개: ${A.item.name}, ${B.item.name}`,
       why: "설명이 비슷하면 AI가 둘 중 잘못 골라 쓸 수 있어요.",
       fix: "하나로 합치거나, 설명에 언제 쓰는지 차이를 적어 주세요.",
       items: [A.item.id, B.item.id],
@@ -179,7 +180,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
   // missing-description (출처마다 1건)
   const noDesc = new Map<string, Entry[]>();
   for (const e of entries) {
-    if ((e.item.kind !== "skill" && e.item.kind !== "agent") || !e.item.enabled || e.secret || e.item.source.type === "builtin") continue;
+    if ((e.item.kind !== "skill" && e.item.kind !== "agent") || !e.item.enabled || e.secret || (e.item.source.type === "builtin" || e.item.source.type === "history")) continue;
     if (e.hasDescription) continue;
     (noDesc.get(sourceKey(e)) ?? noDesc.set(sourceKey(e), []).get(sourceKey(e))!).push(e);
   }
@@ -200,23 +201,24 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     const comps = entries.filter((e) => e.pluginKey === p.key && ["skill", "command", "agent", "mcp"].includes(e.item.kind));
     if (!comps.length) continue;
     if (comps.reduce((s, e) => s + e.item.usage.count30, 0) > 0) continue;
+    // 자동 실행 규칙이 돌고 있으면 플러그인은 일하고 있다. 안 쓴 구성만 unused-items 로 보낸다
+    const hooks = entries.filter((e) => e.pluginKey === p.key && e.item.kind === "hook");
+    if (hooks.some((e) => e.item.usage.count30 > 0)) continue;
     pluginUnused.add(p.key);
     const n = (k: string) => comps.filter((e) => e.item.kind === k).length;
-    const hooks = entries.filter((e) => e.pluginKey === p.key && e.item.kind === "hook");
-    const hookRuns = hooks.reduce((s, e) => s + e.item.usage.count30, 0);
     const tokens = comps.reduce((s, e) => s + (e.item.alwaysLoaded?.tokens ?? 0), 0);
     push("unused-plugin", "medium", {
-      title: `플러그인 ${p.name} 을(를) 한 달 동안 한 번도 안 썼어요`,
+      title: `한 달 동안 한 번도 안 쓴 플러그인: ${p.name}`,
       why: "쓰지 않아도 켜져 있으면 이 플러그인의 목록이 대화마다 컨텍스트를 차지할 수 있어요.",
       fix: "앞으로도 안 쓸 것 같다면 플러그인을 끄거나 지워 주세요.",
       items: [p.item.id],
-      evidence: `작업 설명서 ${n("skill")}개, 명령 ${n("command")}개, 에이전트 ${n("agent")}개, 연결된 서비스 ${n("mcp")}개 모두 30일 0회${tokens ? `, 대화마다 약 ${tokens}토큰(A4 약 ${a4(tokens)}쪽)` : ""}${hookRuns ? `. 자동 실행 규칙은 ${hookRuns}번 실행됐어요` : ""}`,
+      evidence: `작업 설명서 ${n("skill")}개, 명령 ${n("command")}개, 에이전트 ${n("agent")}개, 연결된 서비스 ${n("mcp")}개 모두 30일 0회${tokens ? `, 대화마다 A4 약 ${a4(tokens)}쪽 차지` : ""}`,
     });
   }
   const unused = new Map<string, Entry[]>();
   const total = new Map<string, number>();
   for (const e of entries) {
-    if (!["skill", "agent", "command"].includes(e.item.kind) || !e.item.enabled || e.item.source.type === "builtin") continue;
+    if (!["skill", "agent", "command"].includes(e.item.kind) || !e.item.enabled || (e.item.source.type === "builtin" || e.item.source.type === "history")) continue;
     if (e.pluginKey && pluginUnused.has(e.pluginKey)) continue;
     const k = sourceKey(e);
     total.set(k, (total.get(k) ?? 0) + 1);
@@ -229,7 +231,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
       why: "쓰지 않아도 켜져 있으면 목록 한 줄씩이 대화마다 컨텍스트를 차지할 수 있어요.",
       fix: "자주 쓰지 않는 것은 끄거나 지워서 컨텍스트를 아껴 보세요.",
       items: list.map((e) => e.item.id),
-      evidence: `${total.get(k)}개 중 ${list.length}개가 30일 0회${tokens ? `, 대화마다 약 ${tokens}토큰(A4 약 ${a4(tokens)}쪽)` : ""}`,
+      evidence: `${total.get(k)}개 중 ${list.length}개가 30일 0회${tokens ? `, 대화마다 A4 약 ${a4(tokens)}쪽 차지` : ""}`,
     });
   }
 
@@ -238,11 +240,11 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     if (e.item.kind !== "skill" || !e.item.enabled || !e.body) continue;
     if (e.body.length <= LONG_SKILL_CHARS) continue;
     push("long-skill", "low", {
-      title: `작업 설명서 "${e.item.name}" 이(가) 너무 길어요`,
+      title: `너무 긴 작업 설명서: ${e.item.name}`,
       why: "이 작업 설명서를 부를 때마다 전체를 읽어서 컨텍스트를 많이 쓸 수 있어요.",
       fix: "자주 안 쓰는 부분은 별도 파일로 빼고, 본문에는 핵심만 남겨 주세요.",
       items: [e.item.id],
-      evidence: `본문 ${e.body.length.toLocaleString("en-US")}자 (기준 ${LONG_SKILL_CHARS.toLocaleString("en-US")}자), 약 ${e.item.size.tokens}토큰`,
+      evidence: `본문 ${e.body.length.toLocaleString("en-US")}자 (기준 ${LONG_SKILL_CHARS.toLocaleString("en-US")}자), 부를 때마다 A4 약 ${a4(e.item.size.tokens)}쪽을 읽어요`,
     });
   }
 
@@ -252,20 +254,21 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     if (!h || !e.item.enabled || h.runs30 === 0) continue;
     if (h.avgMs >= SLOW_AVG_MS || h.maxMs >= SLOW_MAX_MS) {
       push("slow-hook", "medium", {
-        title: `자동 실행 규칙 "${e.item.name}" 이(가) 느려요`,
+        title: `자동 실행 규칙 하나가 느려요: ${e.item.name}`,
         why: "이 규칙은 정해진 때마다 자동으로 실행돼서, 느리면 그때마다 기다리게 될 수 있어요.",
         fix: "하는 일을 줄이거나, 오래 걸리는 부분은 백그라운드로 돌리도록 바꿔 보세요.",
         items: [e.item.id],
-        evidence: `평균 ${(h.avgMs / 1000).toFixed(1)}초, 최대 ${(h.maxMs / 1000).toFixed(1)}초 (30일 ${h.runs30}번 실행)`,
+        evidence: `평균 ${(h.avgMs / 1000).toFixed(1)}초, 최대 ${(h.maxMs / 1000).toFixed(1)}초 (기록에 남은 실행 ${h.runs30}번 기준)`,
       });
     }
+    // Claude Code 는 성공한 실행을 다 기록하지 않아 실패율을 못 낸다. 실패 횟수로만 나눈다
     if (h.failures30 >= 1) {
-      push("failing-hook", "high", {
-        title: `자동 실행 규칙 "${e.item.name}" 이(가) 실패하고 있어요`,
+      push("failing-hook", h.failures30 >= FAILING_HIGH ? "high" : "medium", {
+        title: `자동 실행 규칙 하나가 실패했어요: ${e.item.name}`,
         why: "실패하면 원래 하려던 일이 빠지거나, 오류 메시지가 대화에 끼어들 수 있어요.",
         fix: "명령을 터미널에서 직접 실행해 오류를 확인하고, 경로나 설치 상태를 점검해 주세요.",
         items: [e.item.id],
-        evidence: `30일 ${h.runs30}번 실행 중 ${h.failures30}번 실패`,
+        evidence: `최근 30일 기록에 남은 실패 ${h.failures30}번. 한 번뿐이면 그때만의 일시적인 문제일 수도 있어요`,
       });
     }
   }

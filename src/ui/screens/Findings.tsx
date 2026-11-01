@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import type { Severity } from "../../shared/types";
-import { FindingCard } from "../components/FindingCard";
+import type { Finding, Severity } from "../../shared/types";
+import { FindingGroupCard } from "../components/FindingCard";
 import { Header } from "../components/Header";
 import { useUi } from "../context";
 import { SEVERITY_LABEL, SEVERITY_ORDER, num } from "../format";
@@ -31,6 +31,14 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
     return c;
   }, [all]);
   const shown = severity === "all" ? sorted : sorted.filter((f) => f.severity === severity);
+  // 규칙별로 묶는다. 묶음 순서는 가장 심각한 건, 그다음 건수
+  const groups = useMemo(() => {
+    const m = new Map<string, Finding[]>();
+    for (const f of shown) (m.get(f.rule) ?? m.set(f.rule, []).get(f.rule)!).push(f);
+    const worst = (fs: Finding[]) => Math.min(...fs.map((f) => SEVERITY_ORDER[f.severity]));
+    return [...m.values()].sort((a, b) => worst(a) - worst(b) || b.length - a.length);
+  }, [shown]);
+  const ruleCount = useMemo(() => new Set(all.map((f) => f.rule)).size, [all]);
 
   return (
     <>
@@ -46,7 +54,9 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
               <ChevronLeft size={20} />
               전체 지도
             </button>
-            <h1 className="here">진단 결과 {num(all.length)}가지</h1>
+            <h1 className="here">
+              진단 결과 {num(ruleCount)}가지 <span className="meta">문제 {num(all.length)}건</span>
+            </h1>
           </div>
         }
       />
@@ -80,8 +90,8 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
         </div>
       ) : (
         <div className="findings">
-          {shown.map((f) => (
-            <FindingCard key={f.id} finding={f} headingLevel={2} />
+          {groups.map((fs) => (
+            <FindingGroupCard key={fs[0].rule} findings={fs} headingLevel={2} />
           ))}
         </div>
       )}

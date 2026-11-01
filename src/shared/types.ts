@@ -12,7 +12,7 @@ export type ItemKind =
   | "mcp" // 연결된 서비스
   | "plugin"; // 플러그인
 
-export type SourceType = "user" | "project" | "plugin" | "builtin";
+export type SourceType = "user" | "project" | "plugin" | "builtin" | "history"; // history = 대화 기록에만 있고 지금 파일이 없는 항목
 
 export interface Source {
   type: SourceType;

@@ -101,7 +101,8 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     tool(ts(1, 2000), "Skill", { skill: "plugin-a:helper" }),
     tool(ts(1, 3000), "Skill", { skill: "shared-name" }), // 개인 -> 플러그인 순서라 개인 쪽
     tool(ts(45), "Skill", { skill: "unused-one" }), // 30일 밖
-    tool(ts(1, 4000), "Skill", { skill: "not-installed" }), // 목록에 없음, 무시
+    tool(ts(1, 4000), "Skill", { skill: "not-installed" }), // .claude 에 파일이 없음 -> 기본 제공 항목으로 만든다
+    tool(ts(1, 4500), "Skill", { skill: "gone-plugin:old" }), // 지금 없는 플러그인 -> 만들지 않는다
     // 에이전트
     tool(ts(1, 5000), "Agent", { subagent_type: "reviewer", prompt: "x" }),
     tool(ts(1, 6000), "Task", { subagent_type: "Explore", prompt: "x" }),
@@ -128,6 +129,8 @@ export function buildFixtureHome(dest: string, now: Date = new Date()): Fixture 
     hook(ts(1, 13000), "Stop", "bun run C:/fx/hooks/slow-hook.mjs", 12000),
     hook(ts(0, 14000), "PreToolUse", "bun run C:\\fx\\hooks\\failing-hook.mjs", 50, 1, "hook_non_blocking_error"), // 역슬래시여도 같은 명령
     hook(ts(1, 14000), "PreToolUse", "bun run C:/fx/hooks/failing-hook.mjs", 50),
+    hook(ts(2, 14000), "PreToolUse", "bun run C:/fx/hooks/failing-hook.mjs", 50, 1, "hook_non_blocking_error"),
+    hook(ts(3, 14000), "PreToolUse", "bun run C:/fx/hooks/failing-hook.mjs", 50, 2, "hook_non_blocking_error"), // 실패 3번이면 높음
     hook(ts(0, 15000), "SessionStart", "bun run C:/fx/hooks/start-ok.mjs", 500, 0, "hook_success", JSON.stringify({ hookSpecificOutput: { additionalContext: "x".repeat(120) } })),
     L({ type: "attachment", timestamp: ts(0, 15000), attachment: { type: "hook_additional_context", hookEvent: "SessionStart", content: ["a".repeat(400), "b".repeat(200)] } }),
     L({ type: "attachment", timestamp: ts(1, 15000), attachment: { type: "hook_additional_context", hookEvent: "SessionStart", content: ["c".repeat(200)] } }),

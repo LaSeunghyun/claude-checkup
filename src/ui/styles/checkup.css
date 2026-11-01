@@ -253,6 +253,11 @@
 .finding-block p:not(.finding-label) { max-width: 72ch; color: var(--color-text-default); }
 .finding-label { color: var(--color-text-strong); font-size: var(--font-size-body-small); font-weight: 600; }
 .finding-evidence { color: var(--color-text-subtle); font-size: var(--font-size-body-small); font-variant-numeric: tabular-nums; }
+.finding-count { color: var(--color-text-subtle); font-size: var(--font-size-body-small); font-variant-numeric: tabular-nums; }
+.finding-rows { display: grid; gap: var(--space-2); }
+.finding-row { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--color-surface); border-radius: var(--radius-lg); min-width: 0; }
+.finding-more { justify-self: start; }
+.finding-row-title { color: var(--color-text-strong); font-size: var(--font-size-body-small); font-weight: 600; overflow-wrap: anywhere; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chips .btn { white-space: normal; text-align: left; line-height: 1.4; overflow-wrap: anywhere; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .chip-kind { color: var(--color-text-subtle); font-weight: 500; }
