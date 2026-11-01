@@ -1,8 +1,8 @@
 // 로컬 서버: 127.0.0.1 임의 포트, 시작할 때 만든 키로 접근을 막는다.
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import index from "../ui/index.html";
 import { expandHome, isSecretName, readText, redactSecrets } from "../scan/fsutil";
 import { scan } from "../scan";
@@ -183,6 +183,23 @@ export function startServer(opts: ServerOpts): Running {
           return r.body != null ? json({ id, body: r.body }) : json({ error: r.error }, r.status);
         }),
       },
+      // 항목 파일을 탐색기(Finder)에서 선택된 채로 연다. 경로는 받지 않고 알려진 항목 id 로만 찾는다
+      "/api/reveal": {
+        POST: api(async (req) => {
+          let body: { id?: unknown } = {};
+          try {
+            body = await req.json();
+          } catch {
+            /* 아래에서 걸러진다 */
+          }
+          const item = typeof body.id === "string" ? byId.get(body.id) : undefined;
+          if (!item?.path || item.kind === "mcp") return json({ error: "열 수 있는 파일이 없어요." }, 404);
+          const abs = resolve(expandHome(item.path, home));
+          if (isSecretName(abs) || !existsSync(abs)) return json({ error: "파일을 찾지 못했어요." }, 404);
+          reveal(abs);
+          return new Response(null, { status: 204 });
+        }),
+      },
       "/api/settings": {
         GET: api(() => json(settings())),
         POST: api(async (req) => {
@@ -231,6 +248,20 @@ export function startServer(opts: ServerOpts): Running {
   track("launch");
   if (opts.open) openBrowser(url);
   return { url, key, port, stop: () => server.stop(true), firstScan };
+}
+
+function reveal(abs: string) {
+  try {
+    const cmd =
+      process.platform === "win32"
+        ? ["explorer.exe", `/select,${abs}`]
+        : process.platform === "darwin"
+          ? ["open", "-R", abs]
+          : ["xdg-open", dirname(abs)];
+    Bun.spawn(cmd, { stdio: ["ignore", "ignore", "ignore"] });
+  } catch {
+    /* 못 열어도 화면에 경로가 있다 */
+  }
 }
 
 function openBrowser(url: string) {

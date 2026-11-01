@@ -391,6 +391,25 @@ describe("진단 결과 형식", () => {
       expect(f.why).toMatch(/요\.?$/);
     }
   });
+  test("모든 진단에 순서대로 할 일과 Claude 요청문이 있고, 기본 문장으로 때우지 않는다", () => {
+    for (const f of snap.findings) {
+      expect(f.steps.length).toBeGreaterThanOrEqual(2);
+      expect(f.prompt.length).toBeGreaterThan(20);
+      expect(f.prompt).not.toBe(`${f.title}. ${f.fix}`); // todo.ts 의 기본 분기로 빠지지 않았다
+      expect(`${f.steps.join("")}${f.prompt}${f.command ?? ""}`).not.toMatch(/[—–]/);
+    }
+  });
+  test("할 일은 그 항목의 이름과 위치를 담는다", () => {
+    const up = rule("unused-plugin")[0];
+    expect(up.command).toBe("claude plugin disable plugin-unused@mkt");
+    expect(up.steps.join(" ")).toContain("/plugin");
+    const long = rule("long-skill")[0];
+    expect(long.prompt).toContain(find(long.items[0]).path!);
+    const bl = rule("broken-link").find((x) => x.items[0].endsWith("linked.md"))!;
+    expect(bl.prompt).toContain("gone.md");
+    const fail = rule("failing-hook")[0];
+    expect(fail.command).toBe(find(fail.items[0]).hook!.command); // 개인 훅은 직접 실행해 볼 명령을 준다
+  });
   test("항목의 findings 는 진단의 items 와 서로 맞는다", () => {
     for (const f of snap.findings) for (const id of f.items) expect(find(id).findings).toContain(f.id);
     for (const i of snap.items) for (const fid of i.findings) expect(snap.findings.find((f) => f.id === fid)?.items).toContain(i.id);

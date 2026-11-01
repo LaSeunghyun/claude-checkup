@@ -2,6 +2,7 @@
 import { join } from "node:path";
 import type { ContextPart, Group, Item, ItemKind, Progress, Snapshot, Source } from "../shared/types";
 import { diagnose } from "./findings";
+import { todoFor } from "./todo";
 import { claudeRelKey, redactSecrets, slash } from "./fsutil";
 import { buildInventory, type Entry, type Inventory } from "./inventory";
 import { buildLinks } from "./links";
@@ -226,8 +227,14 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
   const ux = aggregate(tr.files, days);
   applyUsage(inv, ux);
   const { broken } = buildLinks(inv.entries, inv.plugins);
-  const findings = diagnose({ entries: inv.entries, plugins: inv.plugins, broken });
+  const dctx = { entries: inv.entries, plugins: inv.plugins, broken };
+  const findings = diagnose(dctx);
+  const entryById = new Map(inv.entries.map((e) => [e.item.id, e] as const));
   for (const f of findings) {
+    const t = todoFor(f, dctx, entryById);
+    f.steps = t.steps.map(redactSecrets);
+    f.prompt = redactSecrets(t.prompt);
+    if (t.command) f.command = redactSecrets(t.command);
     f.title = redactSecrets(f.title);
     f.evidence = redactSecrets(f.evidence);
   }

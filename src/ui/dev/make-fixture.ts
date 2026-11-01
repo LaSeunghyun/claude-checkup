@@ -405,9 +405,10 @@ for (const n of ["feedback_component_reuse", "project_admin_list_fit", "referenc
 
 // ================= 진단 =================
 const findings: Finding[] = [];
-const F = (f: Omit<Finding, "id"> & { key: string }) => {
+const F = (f: Omit<Finding, "id" | "steps" | "prompt"> & Partial<Pick<Finding, "steps" | "prompt">> & { key: string }) => {
   const { key, ...rest } = f;
-  findings.push({ id: `f-${key}`, ...rest });
+  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다
+  findings.push({ id: `f-${key}`, steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
 };
 const fid = (kind: ItemKind, s: Source, name: string) => idOf(kind, s, name);
 

@@ -12856,6 +12856,10 @@
  "findings": [
   {
    "id": "f-memidx-truncated",
+   "steps": [
+    "오래된 항목을 지우거나, 한 줄 설명을 더 짧게 줄여 보세요. 자주 안 쓰는 메모리는 목차에서 빼고 파일만 남겨 두면 줄 수가 줄어요."
+   ],
+   "prompt": "MEMORY.md가 길어서 201줄부터는 AI가 읽지 못해요. 오래된 항목을 지우거나, 한 줄 설명을 더 짧게 줄여 보세요. 자주 안 쓰는 메모리는 목차에서 빼고 파일만 남겨 두면 줄 수가 줄어요.",
    "rule": "memory-index-truncated",
    "severity": "high",
    "title": "MEMORY.md가 길어서 201줄부터는 AI가 읽지 못해요",
@@ -12868,6 +12872,10 @@
   },
   {
    "id": "f-failing-hook",
+   "steps": [
+    "아래 규칙을 직접 한 번 실행해서 오류 메시지를 확인해 보세요. 경로가 바뀌었거나 프로그램이 설치돼 있지 않은 경우가 많아요."
+   ],
+   "prompt": "자동 실행 규칙 하나가 한 달 동안 6번 실패했어요. 아래 규칙을 직접 한 번 실행해서 오류 메시지를 확인해 보세요. 경로가 바뀌었거나 프로그램이 설치돼 있지 않은 경우가 많아요.",
    "rule": "failing-hook",
    "severity": "high",
    "title": "자동 실행 규칙 하나가 한 달 동안 6번 실패했어요",
@@ -12880,6 +12888,10 @@
   },
   {
    "id": "f-unused-plugin-front",
+   "steps": [
+    "당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요."
+   ],
+   "prompt": "nestads-frontend-pipeline 플러그인을 한 달 동안 하나도 안 썼어요. 당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요.",
    "rule": "unused-plugin",
    "severity": "medium",
    "title": "nestads-frontend-pipeline 플러그인을 한 달 동안 하나도 안 썼어요",
@@ -12912,6 +12924,10 @@
   },
   {
    "id": "f-unused-plugin-vercel",
+   "steps": [
+    "Vercel을 안 쓰는 PC라면 플러그인을 꺼 두세요."
+   ],
+   "prompt": "vercel 플러그인을 한 달 동안 하나도 안 썼어요. Vercel을 안 쓰는 PC라면 플러그인을 꺼 두세요.",
    "rule": "unused-plugin",
    "severity": "medium",
    "title": "vercel 플러그인을 한 달 동안 하나도 안 썼어요",
@@ -12941,6 +12957,10 @@
   },
   {
    "id": "f-unused-plugin-slack",
+   "steps": [
+    "Slack 연결이 필요 없다면 플러그인을 꺼 두세요."
+   ],
+   "prompt": "slack 플러그인을 한 달 동안 하나도 안 썼어요. Slack 연결이 필요 없다면 플러그인을 꺼 두세요.",
    "rule": "unused-plugin",
    "severity": "medium",
    "title": "slack 플러그인을 한 달 동안 하나도 안 썼어요",
@@ -12961,6 +12981,10 @@
   },
   {
    "id": "f-slow-hook",
+   "steps": [
+    "규칙 안에서 하는 일을 줄이거나, 결과를 저장해 두고 다시 쓰도록 바꿔 보세요."
+   ],
+   "prompt": "요청을 보낼 때마다 도는 자동 실행 규칙이 느려요. 규칙 안에서 하는 일을 줄이거나, 결과를 저장해 두고 다시 쓰도록 바꿔 보세요.",
    "rule": "slow-hook",
    "severity": "medium",
    "title": "요청을 보낼 때마다 도는 자동 실행 규칙이 느려요",
@@ -12973,6 +12997,10 @@
   },
   {
    "id": "f-dup-rule",
+   "steps": [
+    "한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요."
+   ],
+   "prompt": "같은 규칙이 지시문과 메모리에 두 번 적혀 있어요. 한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요.",
    "rule": "duplicate-rule",
    "severity": "medium",
    "title": "같은 규칙이 지시문과 메모리에 두 번 적혀 있어요",
@@ -12986,6 +13014,10 @@
   },
   {
    "id": "f-broken-link",
+   "steps": [
+    "없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요."
+   ],
+   "prompt": "MEMORY.md가 가리키는 파일 2개가 없어요. 없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요.",
    "rule": "broken-link",
    "severity": "medium",
    "title": "MEMORY.md가 가리키는 파일 2개가 없어요",
@@ -12998,6 +13030,10 @@
   },
   {
    "id": "f-missing-desc",
+   "steps": [
+    "파일 맨 위의 description 에 언제 쓰는 에이전트인지 한 문장으로 적어 주세요."
+   ],
+   "prompt": "db-migrator 에이전트에 설명이 없어요. 파일 맨 위의 description 에 언제 쓰는 에이전트인지 한 문장으로 적어 주세요.",
    "rule": "missing-description",
    "severity": "medium",
    "title": "db-migrator 에이전트에 설명이 없어요",
@@ -13010,6 +13046,10 @@
   },
   {
    "id": "f-dup-name",
+   "steps": [
+    "쓰지 않는 쪽 플러그인을 끄거나 이름을 바꿔 주세요."
+   ],
+   "prompt": "code-review 작업 설명서가 두 곳에 켜져 있어요. 쓰지 않는 쪽 플러그인을 끄거나 이름을 바꿔 주세요.",
    "rule": "duplicate-name",
    "severity": "medium",
    "title": "code-review 작업 설명서가 두 곳에 켜져 있어요",
@@ -13023,6 +13063,10 @@
   },
   {
    "id": "f-unused-items",
+   "steps": [
+    "자주 안 쓰는 것은 플러그인 설정에서 빼 보세요. 꼭 지울 필요는 없어요."
+   ],
+   "prompt": "superpowers 플러그인에서 한 달 동안 안 쓴 작업 설명서 4개. 자주 안 쓰는 것은 플러그인 설정에서 빼 보세요. 꼭 지울 필요는 없어요.",
    "rule": "unused-items",
    "severity": "low",
    "title": "superpowers 플러그인에서 한 달 동안 안 쓴 작업 설명서 4개",
@@ -13038,6 +13082,10 @@
   },
   {
    "id": "f-unused-items-backend",
+   "steps": [
+    "백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요."
+   ],
+   "prompt": "nestads-backend-pipeline에서 한 달 동안 안 쓴 것 7개. 백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요.",
    "rule": "unused-items",
    "severity": "low",
    "title": "nestads-backend-pipeline에서 한 달 동안 안 쓴 것 7개",
@@ -13056,6 +13104,10 @@
   },
   {
    "id": "f-long-skill",
+   "steps": [
+    "자주 쓰는 부분만 본문에 두고, 나머지는 따로 파일로 떼어 필요할 때만 읽게 해 보세요."
+   ],
+   "prompt": "vercel의 nextjs 작업 설명서 본문이 아주 길어요. 자주 쓰는 부분만 본문에 두고, 나머지는 따로 파일로 떼어 필요할 때만 읽게 해 보세요.",
    "rule": "long-skill",
    "severity": "low",
    "title": "vercel의 nextjs 작업 설명서 본문이 아주 길어요",
@@ -13068,6 +13120,10 @@
   },
   {
    "id": "f-near-limit",
+   "steps": [
+    "오래된 메모리를 정리하거나 한 줄 설명을 줄여 두세요."
+   ],
+   "prompt": "프론트엔드 MEMORY.md가 200줄에 가까워요. 오래된 메모리를 정리하거나 한 줄 설명을 줄여 두세요.",
    "rule": "memory-index-near-limit",
    "severity": "low",
    "title": "프론트엔드 MEMORY.md가 200줄에 가까워요",
@@ -13080,6 +13136,10 @@
   },
   {
    "id": "f-orphan",
+   "steps": [
+    "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요."
+   ],
+   "prompt": "목차에 없는 메모리 파일 2개. 목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요.",
    "rule": "orphan-memory",
    "severity": "low",
    "title": "목차에 없는 메모리 파일 2개",
@@ -13093,6 +13153,10 @@
   },
   {
    "id": "f-similar",
+   "steps": [
+    "각각 언제 쓰는지 서로 다른 단어로 구분해서 적어 주세요."
+   ],
+   "prompt": "figma-design-to-code와 figma-generate-design 설명이 비슷해요. 각각 언제 쓰는지 서로 다른 단어로 구분해서 적어 주세요.",
    "rule": "similar-description",
    "severity": "low",
    "title": "figma-design-to-code와 figma-generate-design 설명이 비슷해요",

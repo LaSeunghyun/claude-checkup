@@ -37,10 +37,10 @@ const kindWord = (k: string): string => (k === "agent" ? "에이전트" : k === 
 export function diagnose(ctx: DiagnoseCtx): Finding[] {
   const out: Finding[] = [];
   const counters = new Map<string, number>();
-  const push = (rule: string, severity: Severity, f: Omit<Finding, "id" | "rule" | "severity">) => {
+  const push = (rule: string, severity: Severity, f: Omit<Finding, "id" | "rule" | "severity" | "steps" | "prompt" | "command">) => {
     const n = (counters.get(rule) ?? 0) + 1;
     counters.set(rule, n);
-    out.push({ id: `${rule}:${n}`, rule, severity, ...f });
+    out.push({ id: `${rule}:${n}`, rule, severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
   };
   const { entries } = ctx;
   const byId = new Map(entries.map((e) => [e.item.id, e] as const));

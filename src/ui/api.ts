@@ -83,6 +83,20 @@ export async function getTelemetryPreview(): Promise<TelemetryEvent> {
   return (await res.json()) as TelemetryEvent;
 }
 
+/** 항목 파일을 탐색기(Finder)에서 연다. 성공 여부만 돌려준다 */
+export async function revealItem(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(withQuery("/api/reveal"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** 화면을 열었다는 사실만 알린다. 보낼지 말지는 서버가 정하고, 실패는 조용히 버린다 */
 export function postViewOpen(view: NonNullable<TelemetryEvent["view"]>): void {
   fetch(withQuery("/api/telemetry"), {

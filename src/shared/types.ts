@@ -65,9 +65,12 @@ export interface Finding {
   severity: Severity;
   title: string; // 무엇이
   why: string; // 왜 중요한지
-  fix: string; // 어떻게 고치나
+  fix: string; // 어떻게 고치나 (규칙 공통 한 문장)
   items: string[]; // 관련 Item id
   evidence: string; // 숫자 근거
+  steps: string[]; // 이 진단에 맞춘, 순서대로 할 일
+  prompt: string; // Claude Code 에 그대로 붙여 넣을 요청문
+  command?: string; // 터미널에서 실행할 명령 (있을 때만)
 }
 
 export interface Group {
@@ -140,5 +143,6 @@ export interface TelemetryEvent {
 // GET  /api/item-body?id=      -> { id: string; body: string } (비밀 파일은 403)
 // GET  /api/settings           -> Settings
 // POST /api/settings           -> Settings   body: { telemetry: "on" | "off" }
+// POST /api/reveal            -> 204          body: { id }  그 항목 파일을 탐색기에서 연다
 // GET  /api/telemetry-preview  -> TelemetryEvent (보낼 내용 그대로)
 // POST /api/telemetry          -> 204          body: { event, view? }  서버가 나머지 필드를 채워 보낸다
