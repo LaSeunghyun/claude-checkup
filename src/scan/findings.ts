@@ -1,5 +1,6 @@
 // 진단 규칙 (design.md 7절). 문구는 비전문가용 해요체, 단정 대신 "~일 수 있어요".
 import { isAbsolute, join, relative } from "node:path";
+import { A4_TOKENS } from "../shared/rank";
 import type { Category, Finding, FixKind, MdGraph, Severity } from "../shared/types";
 import { secretLineNumbers } from "./fsutil";
 import type { Entry, PluginEntry } from "./inventory";
@@ -93,7 +94,11 @@ function fixKindOf(rule: RuleId, es: Entry[], claudeDir: string, unloaded = fals
   return m.fixKind;
 }
 
-export const a4 = (tokens: number): string => (tokens / 1500).toFixed(1);
+// A4 쪽수 글. 0.1쪽이 안 되는 작은 양은 0.0 으로 보이지 않게 소수 둘째 자리까지
+export const a4 = (tokens: number): string => {
+  const p = tokens / A4_TOKENS;
+  return p > 0 && p < 0.05 ? Math.max(p, 0.01).toFixed(2) : p.toFixed(1);
+};
 
 const sourceKey = (e: Entry): string => `${e.item.source.type}:${e.item.source.plugin ?? e.item.source.project ?? ""}`;
 const sourceLabel = (e: Entry): string => {
@@ -106,6 +111,31 @@ const where = (e: Entry): string => {
   return s.type === "project" ? `프로젝트 ${s.project} 의 ` : s.type === "user" ? "개인 " : "";
 };
 const kindWord = (k: string): string => (k === "agent" ? "에이전트" : k === "command" ? "명령" : "작업 설명서");
+
+// 같은 줄(정규화, 25자 이상)이 함께 들어 있는 파일 묶음. ids 는 정렬, 겹치는 줄이 많은 묶음부터
+export function duplicateGroups(entries: Entry[]): { ids: string[]; samples: string[] }[] {
+  const lineMap = new Map<string, { ids: Set<string>; sample: string }>();
+  for (const e of entries) {
+    if ((e.item.kind !== "instruction" && e.item.kind !== "memory-index") || !e.text) continue;
+    for (const raw of e.text.split("\n")) {
+      const n = normalizeLine(raw);
+      if (n.length < MIN_DUP_CHARS) continue;
+      let r = lineMap.get(n);
+      if (!r) lineMap.set(n, (r = { ids: new Set(), sample: raw.trim() }));
+      r.ids.add(e.item.id);
+    }
+  }
+  const groups = new Map<string, { ids: string[]; samples: string[] }>();
+  for (const r of lineMap.values()) {
+    if (r.ids.size < 2) continue;
+    const ids = [...r.ids].sort();
+    const k = ids.join("|");
+    let g = groups.get(k);
+    if (!g) groups.set(k, (g = { ids, samples: [] }));
+    g.samples.push(r.sample);
+  }
+  return [...groups.values()].sort((a, b) => b.samples.length - a.samples.length || a.ids.join().localeCompare(b.ids.join()));
+}
 
 export function diagnose(ctx: DiagnoseCtx): Finding[] {
   const out: Finding[] = [];
@@ -213,28 +243,7 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
   }
 
   // duplicate-rule (지시문·MEMORY.md 2곳 이상에 같은 줄)
-  const lineMap = new Map<string, { ids: Set<string>; sample: string }>();
-  for (const e of entries) {
-    if ((e.item.kind !== "instruction" && e.item.kind !== "memory-index") || !e.text) continue;
-    for (const raw of e.text.split("\n")) {
-      const n = normalizeLine(raw);
-      if (n.length < MIN_DUP_CHARS) continue;
-      let r = lineMap.get(n);
-      if (!r) lineMap.set(n, (r = { ids: new Set(), sample: raw.trim() }));
-      r.ids.add(e.item.id);
-    }
-  }
-  const dupGroups = new Map<string, { ids: string[]; samples: string[] }>();
-  for (const r of lineMap.values()) {
-    if (r.ids.size < 2) continue;
-    const ids = [...r.ids].sort();
-    const k = ids.join("|");
-    let g = dupGroups.get(k);
-    if (!g) dupGroups.set(k, (g = { ids, samples: [] }));
-    g.samples.push(r.sample);
-  }
-  const dupList = [...dupGroups.values()].sort((a, b) => b.samples.length - a.samples.length || a.ids.join().localeCompare(b.ids.join()));
-  for (const g of dupList.slice(0, 20)) {
+  for (const g of duplicateGroups(entries).slice(0, 20)) {
     const names = g.ids.map((id) => (byId.get(id) ? shortName(byId.get(id)!) : id));
     push("duplicate-rule", "medium", {
       title: `같은 규칙이 ${g.ids.length}곳에 겹쳐 있어요 (${truncate(names.join(", "), 60)})`,

@@ -1,10 +1,12 @@
-// 스캐너 진입점: scan(home, opts) => Snapshot
+// 스캐너 진입점: scan(home, opts) => Snapshot. 집계(collectUsage)와 분석(analyze)이 나뉘어 있어서
+// 미리 보기는 집계를 다시 하지 않고 가상의 홈만 다시 분석한다
 import { join } from "node:path";
 import { CATEGORIES, type Category, type ContextPart, type Group, type HistorySummary, type Item, type ItemKind, type Progress, type Snapshot, type Source } from "../shared/types";
 import { diagnose, type DiagnoseCtx } from "./findings";
+import { estimateGains } from "./gain";
 import { buildGraph, leaksOf } from "./graph";
 import { todoFor } from "./todo";
-import { claudeRelKey, redactSecrets, slash } from "./fsutil";
+import { claudeRelKey, redactSecrets, slash, withOverlay, type Overlay } from "./fsutil";
 import { buildInventory, type Entry, type Inventory } from "./inventory";
 import { buildLinks } from "./links";
 import { aggregate, hookKey, loadTranscripts, windowDays, type Acc, type UsageIndex } from "./transcripts";
@@ -200,7 +202,7 @@ function buildGroups(items: Item[]): Group[] {
   );
 }
 
-// 전후 비교와 기록에 쓰는 요약. Task 4 가 이 함수를 옮긴다
+// 전후 비교와 기록에 쓰는 요약
 export function summaryOf(s: Pick<Snapshot, "generatedAt" | "context" | "findings" | "leaks">): HistorySummary {
   const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
   for (const f of s.findings) byCategory[f.category]++;
@@ -213,19 +215,20 @@ export function summaryOf(s: Pick<Snapshot, "generatedAt" | "context" | "finding
   };
 }
 
-export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot> {
+// 대화 기록 집계. 분석(analyze)과 달리 3GB 넘는 기록을 읽으므로, 미리 보기는 이 결과를 다시 쓴다
+export interface ScanCore {
+  ux: UsageIndex;
+  stats: Snapshot["stats"];
+  warnings: string[];
+  now: Date;
+}
+
+export async function collectUsage(home: string, opts: ScanOpts = {}): Promise<ScanCore> {
   const t0 = Date.now();
   const now = opts.now ?? new Date();
   const emit = (p: Progress) => opts.onProgress?.(p);
-  emit({ phase: "inventory", filesDone: 0, filesTotal: 0, message: "설정을 읽는 중이에요" });
-
-  const inv = buildInventory(home);
-  const warnings = [...inv.warnings];
-  const days = windowDays(now);
-
-  const claudeDir = join(home, ".claude");
   let lastEmit = 0;
-  const tr = await loadTranscripts(claudeDir, {
+  const tr = await loadTranscripts(join(home, ".claude"), {
     cachePath: opts.cache === false ? null : join(home, ".claude-checkup", "cache.json"),
     concurrency: opts.concurrency,
     onFile: (done, total) => {
@@ -236,10 +239,39 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
       }
     },
   });
-  warnings.push(...tr.warnings);
+  const ux = aggregate(tr.files, windowDays(now));
+  return {
+    ux,
+    now,
+    warnings: tr.warnings,
+    stats: {
+      sessions30: ux.sessions30,
+      prompts30: ux.prompts30,
+      toolCalls30: ux.tools30,
+      transcriptsScanned: tr.files.length,
+      bytesScanned: tr.bytes,
+      durationMs: Date.now() - t0,
+    },
+  };
+}
 
-  emit({ phase: "diagnose", filesDone: tr.files.length, filesTotal: tr.files.length, message: "진단하는 중이에요" });
-  const ux = aggregate(tr.files, days);
+// 진단마다 고치기 계획에 쓰는 원재료(파일 경로, 끊긴 링크 등). 스냅샷에는 싣지 않는다
+const ctxBySnap = new WeakMap<Snapshot, DiagnoseCtx>();
+export const diagnoseCtxOf = (s: Snapshot): DiagnoseCtx | undefined => ctxBySnap.get(s);
+
+// 설정 파일을 읽어 진단까지. core 는 읽기만 하므로 같은 core 로 여러 번 부를 수 있다.
+// ov 를 주면 그 덮어쓰기를 얹은 가상의 홈을 분석한다(실제 파일은 그대로, design.md 8-4절)
+export function analyze(home: string, core: ScanCore, ov?: Overlay): Snapshot {
+  return ov ? withOverlay(ov, () => analyzeNow(home, core)) : analyzeNow(home, core);
+}
+
+function analyzeNow(home: string, core: ScanCore): Snapshot {
+  const { ux, now } = core;
+  const inv = buildInventory(home);
+  const warnings = [...inv.warnings, ...core.warnings];
+  const days = windowDays(now);
+  const claudeDir = join(home, ".claude");
+
   applyUsage(inv, ux);
   const { broken, edges } = buildLinks(inv.entries, inv.plugins, home);
   const graph = buildGraph(inv.entries, edges);
@@ -277,14 +309,7 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
     generatedAt,
     home: "~",
     window: { from: new Date(`${days[0]}T00:00:00`).toISOString(), to: now.toISOString(), days: 30 },
-    stats: {
-      sessions30: ux.sessions30,
-      prompts30: ux.prompts30,
-      toolCalls30: ux.tools30,
-      transcriptsScanned: tr.files.length,
-      bytesScanned: tr.bytes,
-      durationMs: Date.now() - t0,
-    },
+    stats: { ...core.stats, toolCalls30: { ...core.stats.toolCalls30 } },
     context,
     items,
     groups: buildGroups(items),
@@ -294,6 +319,21 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
     summary: summaryOf({ generatedAt, context, findings, leaks }),
     warnings,
   };
-  emit({ phase: "done", filesDone: tr.files.length, filesTotal: tr.files.length });
+  ctxBySnap.set(snap, dctx);
+  return snap;
+}
+
+// 점검 한 번: 집계 → 분석 → 할 일 카드의 사전 기대 효과
+export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot> {
+  const t0 = Date.now();
+  const emit = (p: Progress) => opts.onProgress?.(p);
+  emit({ phase: "inventory", filesDone: 0, filesTotal: 0, message: "설정을 읽는 중이에요" });
+  const core = await collectUsage(home, opts);
+  const n = core.stats.transcriptsScanned;
+  emit({ phase: "diagnose", filesDone: n, filesTotal: n, message: "진단하는 중이에요" });
+  const snap = analyze(home, core);
+  estimateGains(home, core, snap);
+  snap.stats.durationMs = Date.now() - t0;
+  emit({ phase: "done", filesDone: n, filesTotal: n });
   return snap;
 }
