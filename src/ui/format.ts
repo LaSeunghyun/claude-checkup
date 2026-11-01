@@ -1,5 +1,5 @@
 // 화면 표기용 문구와 숫자 포맷. 용어 규칙은 docs/design.md 3절.
-import type { Item, ItemKind, Severity, Source } from "../shared/types";
+import type { Category, Item, ItemKind, Severity, Source } from "../shared/types";
 
 // 토큰 1,500개 = A4 1쪽 (추정). 화면에는 항상 "약"을 붙인다.
 const TOKENS_PER_PAGE = 1500;
@@ -146,4 +146,12 @@ export const HOOK_EVENT: Record<string, string> = {
   Notification: "알림이 뜰 때",
   PreCompact: "대화를 줄이기 전",
   SessionEnd: "대화를 끝낼 때",
+};
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  risk: "위험",
+  broken: "고장",
+  leak: "연결 누수",
+  waste: "낭비",
+  confusion: "헷갈림",
 };

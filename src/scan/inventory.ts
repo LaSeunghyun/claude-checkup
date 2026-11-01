@@ -82,6 +82,13 @@ class Builder {
   ids = new Set<string>();
   constructor(readonly home: string) {}
 
+  // JSON 설정 읽기. 파일이 있는데 못 읽으면(깨졌거나 권한 문제) 안내에 남긴다
+  json(abs: string): any | null {
+    const j = readJson(abs);
+    if (j == null && exists(abs)) this.warnings.push(`${displayPath(abs, this.home)} 를 읽지 못했어요. 파일이 깨졌거나 권한이 없을 수 있어요.`);
+    return j;
+  }
+
   add(e: Omit<Entry, "item" | "inv"> & { inv?: string[]; item: Omit<Item, "id" | "usage" | "links" | "findings" | "outline"> & { outline?: string[] } }): Entry {
     const source = e.item.source;
     let id = itemId(e.item.kind, source, e.item.name);
@@ -186,11 +193,17 @@ function hookLabel(command: string): string {
   return truncate(command.replace(/\s+/g, " "), 40);
 }
 
-// 명령에 섞여 들어갔을지 모르는 비밀값 가리기
+// 명령에 섞여 들어갔을지 모르는 비밀값 가리기 (화면에 나가는 이름·id·요약 모두 이것을 거친다)
 export function redactCommand(cmd: string): string {
   return redactSecrets(cmd)
-    .replace(/(Bearer\s+)\S+/gi, "$1***")
-    .replace(/((?:\b|--?)[\w-]*(?:token|secret|key|password|passwd|auth|credential)[\w-]*(?:\s*[=:]\s*|\s+))(?!\*\*\*)("[^"]*"|'[^']*'|[^\s-]\S*)/gi, "$1***");
+    .replace(/(\/\/)[^\s/@:]+:[^\s/@]+@/g, "$1***@") // 주소 속 user:pass@
+    .replace(/\/bot\d+:[A-Za-z0-9_-]+/g, "/bot***") // 텔레그램 봇 주소
+    .replace(/(hooks\.slack\.com\/services\/)[\w/-]+/gi, "$1***") // 슬랙 웹훅 주소
+    .replace(/((?:Proxy-)?Authorization\s*:\s*)[^"'\r\n]+/gi, "$1***") // 방식 이름(Basic, Bearer, token, Bot ...)이 무엇이든 헤더 값 전체
+    .replace(/\b(Basic|Bearer)(\s+)[^\s"']+/gi, "$1$2***")
+    .replace(/(\s(?:-u|--user)[\s=]+["']?)[^\s:"']+:[^\s"']+/g, "$1***") // curl -u user:pass (콜론이 없는 -u 는 건드리지 않는다)
+    .replace(/((?:\b|--?)[\w-]*(?:token|secret|key|password|passwd|auth|credential)[\w-]*(?:\s*[=:]\s*|\s+))(?!\*\*\*|(?:Basic|Bearer)\s+\*\*\*)("[^"]*"|'[^']*'|[^\s-]\S*)/gi, "$1***")
+    .replace(/(?<![A-Za-z0-9])[A-Za-z0-9]{32,}(?![A-Za-z0-9])/g, "***"); // 32자 이상 영숫자 덩어리는 키로 본다
 }
 
 interface RawHook {
@@ -222,8 +235,8 @@ function collectHooks(obj: unknown): RawHook[] {
 function addHooks(b: Builder, raw: RawHook[], source: Source, enabled: boolean, abs: string, pluginKey?: string) {
   const when = (e: string) => EVENT_WHEN[e] ?? `${e} 때`;
   for (const h of raw) {
-    const label = hookLabel(h.command);
     const cmd = redactCommand(h.command);
+    const label = hookLabel(cmd); // 이름과 id 에도 가린 명령만 쓴다
     b.add({
       abs,
       pluginKey,
@@ -237,7 +250,7 @@ function addHooks(b: Builder, raw: RawHook[], source: Source, enabled: boolean, 
         size: { chars: cmd.length, lines: 1, tokens: estimateTokens(cmd) },
         alwaysLoaded: null,
         enabled,
-        hook: { event: h.event, matcher: h.matcher, command: cmd, runs30: 0, avgMs: 0, maxMs: 0, failures30: 0 },
+        hook: { event: h.event, matcher: h.matcher, command: cmd, runs30: 0, avgMs: 0, maxMs: 0, failures30: 0, blocked30: 0 },
       },
     });
   }
@@ -296,8 +309,8 @@ function resolveInstall(claudeDir: string, key: string, rec: InstallRec): string
   return null;
 }
 
-function readMcpNames(abs: string): string[] {
-  const j = readJson(abs);
+function readMcpNames(b: Builder, abs: string): string[] {
+  const j = b.json(abs);
   if (!j || typeof j !== "object") return [];
   const servers = j.mcpServers && typeof j.mcpServers === "object" ? j.mcpServers : j;
   return Object.keys(servers).filter((k) => servers[k] && typeof servers[k] === "object");
@@ -323,7 +336,7 @@ function addMcp(b: Builder, name: string, source: Source, enabled: boolean, abs:
 
 function addPlugins(b: Builder, claudeDir: string, settings: Record<string, unknown> | null): PluginEntry[] {
   const out: PluginEntry[] = [];
-  const reg = readJson(join(claudeDir, "plugins", "installed_plugins.json"));
+  const reg = b.json(join(claudeDir, "plugins", "installed_plugins.json"));
   const plugins: Record<string, InstallRec[]> | undefined = reg?.plugins;
   if (!plugins || typeof plugins !== "object") return out;
   const enabledMap = (settings?.enabledPlugins ?? {}) as Record<string, unknown>;
@@ -349,7 +362,7 @@ function addPlugins(b: Builder, claudeDir: string, settings: Record<string, unkn
     let outline: string[] = [];
     let chars = 0;
     if (installPath) {
-      const pj = readJson(join(installPath, ".claude-plugin", "plugin.json"));
+      const pj = b.json(join(installPath, ".claude-plugin", "plugin.json"));
       if (pj && typeof pj.description === "string") desc = pj.description;
       const readme = readText(join(installPath, "README.md"));
       if (readme) {
@@ -426,10 +439,10 @@ function addPlugins(b: Builder, claudeDir: string, settings: Record<string, unkn
       });
       e.inv = invNames(name, nm);
     }
-    const hj = readJson(join(installPath, "hooks", "hooks.json"));
+    const hj = b.json(join(installPath, "hooks", "hooks.json"));
     if (hj) addHooks(b, collectHooks(hj.hooks ?? hj), source, enabled, join(installPath, "hooks", "hooks.json"), key);
     const mcpFile = join(installPath, ".mcp.json");
-    if (isFile(mcpFile)) for (const s of readMcpNames(mcpFile)) addMcp(b, s, source, enabled, mcpFile, key);
+    if (isFile(mcpFile)) for (const s of readMcpNames(b, mcpFile)) addMcp(b, s, source, enabled, mcpFile, key);
   }
   return out;
 }
@@ -481,7 +494,7 @@ export function buildInventory(home: string): Inventory {
 
   const settings = readJson(join(claudeDir, "settings.json"));
   if (!settings && exists(join(claudeDir, "settings.json"))) b.warnings.push("settings.json 을 읽지 못했어요. 플러그인과 훅이 꺼져 있다고 보일 수 있어요.");
-  const claudeJson = readJson(join(home, ".claude.json"));
+  const claudeJson = b.json(join(home, ".claude.json"));
   const user: Source = { type: "user" };
 
   // 지시문

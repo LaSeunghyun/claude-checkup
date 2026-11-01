@@ -24,7 +24,7 @@ export const SECTIONS: Record<SectionKey, SectionDef> = {
 };
 
 export function isSectionKey(v: string | null | undefined): v is SectionKey {
-  return !!v && v in SECTIONS;
+  return !!v && Object.hasOwn(SECTIONS, v); // "constructor" 같은 상속 이름이 통과하지 않게
 }
 
 export interface Model {

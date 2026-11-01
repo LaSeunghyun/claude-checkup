@@ -6,9 +6,21 @@
 //   ?mock=error      점검 실패 화면
 //   ?mock=empty      .claude 폴더가 없는 화면
 //   ?mock=consent    첫 실행 동의 화면
+//   ?mock=first      첫 검진 (지난 점검 요약 없음)
+//   ?mock=norisk     위험 진단 없음
+//   ?mock=clean      진단이 하나도 없는 깨끗한 설정 (손볼 곳 0)
+//   ?mock=risk-only  위험만 있고 할 일은 없음
+// 고치기 시트 상태 (기본은 1.5초 뒤 미리 보기, 적용 성공, 되돌리기 성공)
+//   ?mock=fix-blocked    미리 보기는 나오지만 적용이 막힌 사례
+//   ?mock=fix-consent    claude 고치기 동의가 먼저 필요한 사례 (동의하면 기본 흐름)
+//   ?mock=fix-nocli      claude 를 쓸 수 없는 환경 (고치기 대신 맡길 말 복사)
+//   ?mock=fix-failed     미리 보기 만들기 실패
+//   ?mock=fix-stale      적용이 거절되는 사례 (미리 보기 뒤 파일이 바뀜)
+//   ?mock=fix-undo-fail  되돌리기가 거절되는 사례 (그사이 파일이 바뀜)
 // 화면의 "다시 점검" 을 누르면 약 5초 동안 진행률 화면이 나온다.
 import { join } from "node:path";
 import type { Item, Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
+import { createFixRoutes } from "./dev-fix";
 import index from "./index.html";
 
 const fixture = (await Bun.file(join(import.meta.dir, "dev", "fixture-snapshot.json")).json()) as Snapshot;
@@ -42,6 +54,20 @@ function emptySnapshot(): Snapshot {
   };
 }
 
+// 첫 화면 상태 확인용: 같은 가짜 데이터에서 일부만 걷어 낸다
+function variant(mock: string | null): Snapshot {
+  const strip = (findings: Snapshot["findings"]): Snapshot => ({
+    ...fixture,
+    findings,
+    items: fixture.items.map((i) => ({ ...i, findings: i.findings.filter((id) => findings.some((f) => f.id === id)) })),
+  });
+  if (mock === "first") return { ...fixture, previous: undefined };
+  if (mock === "norisk") return strip(fixture.findings.filter((f) => f.category !== "risk"));
+  if (mock === "risk-only") return strip(fixture.findings.filter((f) => f.category === "risk"));
+  if (mock === "clean") return { ...strip([]), previous: undefined };
+  return fixture;
+}
+
 function bodyFor(it: Item): string {
   const fm = ["skill", "agent", "command"].includes(it.kind) ? `---\nname: ${it.name}\ndescription: ${it.summary}\n---\n\n` : "";
   const heads = it.outline.length ? it.outline : ["개요"];
@@ -69,7 +95,7 @@ const routes = {
     if (mock === "error") return json({ error: "~/.claude 폴더를 읽는 중에 권한 문제가 생겼어요. 폴더 권한을 확인한 뒤 다시 점검해 주세요." }, 500);
     const p = progressNow(req);
     if (p.phase !== "done") return json(p, 404);
-    return json(mock === "empty" ? emptySnapshot() : fixture);
+    return json(mock === "empty" ? emptySnapshot() : variant(mock));
   },
 
   "/api/progress": (req: Request) => json(progressNow(req)),
@@ -90,7 +116,11 @@ const routes = {
 
   "/api/settings": async (req: Request) => {
     if (req.method === "POST") {
-      const body = (await req.json().catch(() => ({}))) as { telemetry?: string };
+      const body = (await req.json().catch(() => ({}))) as { telemetry?: string; claudeFix?: string };
+      if (body.claudeFix === "agreed") {
+        settings = { ...settings, claudeFix: "agreed" };
+        return json(settings);
+      }
       if (body.telemetry !== "on" && body.telemetry !== "off") return json({ error: "telemetry 는 on 또는 off 여야 해요" }, 400);
       settings = body.telemetry === "on" ? { telemetry: "on", installId: settings.installId ?? crypto.randomUUID() } : { telemetry: "off" };
       return json(settings);
@@ -108,8 +138,10 @@ const routes = {
   },
 };
 
+const fixRoutes = createFixRoutes({ fixture, getSettings: () => settings });
+
 function start(port: number) {
-  return Bun.serve({ port, hostname: "127.0.0.1", development: true, routes });
+  return Bun.serve({ port, hostname: "127.0.0.1", development: true, routes: { ...routes, ...fixRoutes } });
 }
 
 let server: ReturnType<typeof start>;
@@ -119,4 +151,4 @@ try {
   server = start(0); // 기본 포트가 쓰이고 있으면 아무 포트나 쓴다
 }
 console.log(`화면 개발 서버: ${server.url}`);
-console.log("  상태 확인: ?mock=scanning | error | empty | consent");
+console.log("  상태 확인: ?mock=scanning | error | empty | consent | first | norisk | clean | risk-only | fix-blocked | fix-consent | fix-nocli | fix-failed | fix-stale | fix-undo-fail");

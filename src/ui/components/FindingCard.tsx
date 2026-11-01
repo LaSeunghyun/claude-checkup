@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Finding } from "../../shared/types";
+import { revealItem } from "../api";
 import { useUi } from "../context";
 import { KIND_LABEL, SEVERITY_BADGE, SEVERITY_LABEL, SEVERITY_ORDER, num } from "../format";
 import { itemsByIds } from "../model";
+import { CopyButton } from "./CopyButton";
+import { FixAction, StepList } from "./TodoCard";
 
 const CHIP_LIMIT = 8;
 const ROW_LIMIT = 5; // 묶음 카드는 앞의 몇 건만 펼쳐 둔다
@@ -31,6 +34,41 @@ export function ItemChips({ ids, label }: { ids: string[]; label?: string }) {
   );
 }
 
+/** 진단 한 건의 행동 줄: 고치기(또는 복사), manual 이면 맡길 말·명령 복사와 파일 위치 열기, 직접 하는 순서 */
+export function FindingActions({ finding }: { finding: Finding }) {
+  const { openFix } = useUi();
+  const [open, setOpen] = useState(false);
+  const [revealFailed, setRevealFailed] = useState(false);
+  const panelId = useId();
+  const manual = finding.fixKind === "manual";
+  const target = finding.items[0];
+  return (
+    <div className="finding-actions">
+      <div className="acts">
+        <FixAction finding={finding} onFix={openFix} />
+        {manual && finding.prompt && <CopyButton text={finding.prompt} label="맡길 말 복사" />}
+        {manual && finding.command && <CopyButton text={finding.command} label="명령 복사" />}
+        {manual && target && (
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={async () => setRevealFailed(!(await revealItem(target)))}
+          >
+            파일 위치 열기
+          </button>
+        )}
+        <button className="btn btn-ghost btn-sm" type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}>
+          {open ? "순서 접기" : "직접 하는 순서"}
+        </button>
+      </div>
+      {revealFailed && <p className="help">파일 위치를 열지 못했어요. 위 근거에 적힌 파일을 직접 열어 주세요.</p>}
+      <div id={panelId} hidden={!open}>
+        {open && <StepList finding={finding} />}
+      </div>
+    </div>
+  );
+}
+
 // 진단 결과 화면은 같은 규칙을 카드 하나로 묶는다. 왜·어떻게는 규칙마다 같은 문구라 한 번만 보여 준다
 const RULE_TEXT: Record<string, { title: string; list: string }> = {
   "failing-hook": { title: "자동 실행 규칙이 실패했어요", list: "실패한 규칙" },
@@ -38,7 +76,9 @@ const RULE_TEXT: Record<string, { title: string; list: string }> = {
   "memory-index-truncated": { title: "MEMORY.md가 길어서 뒷부분이 안 읽혀요", list: "해당 목차" },
   "memory-index-near-limit": { title: "MEMORY.md가 읽히는 한도에 거의 찼어요", list: "해당 목차" },
   "broken-link": { title: "없는 파일을 가리키는 링크가 있어요", list: "링크가 끊긴 파일" },
-  "orphan-memory": { title: "목차에 없는 메모리 파일이 있어요", list: "메모리 폴더별" },
+  "unreachable-md": { title: "AI가 찾아갈 길이 없는 메모리 파일이 있어요", list: "메모리 폴더별" },
+  "unread-md": { title: "이어져 있지만 한 달 동안 안 읽힌 메모리 파일이 있어요", list: "메모리 폴더별" },
+  "secret-in-file": { title: "파일 안에 토큰이나 키로 보이는 값이 있어요", list: "해당 파일" },
   "duplicate-rule": { title: "같은 규칙이 여러 지시문에 적혀 있어요", list: "겹치는 곳" },
   "duplicate-name": { title: "같은 이름이 여러 곳에 켜져 있어요", list: "겹치는 이름" },
   "similar-description": { title: "설명이 거의 같은 작업 설명서가 있어요", list: "비슷한 짝" },
@@ -80,6 +120,7 @@ export function FindingGroupCard({ findings, headingLevel = 2 }: { findings: Fin
                 {rt && <p className="finding-row-title">{rt}</p>}
                 <ItemChips ids={f.items} />
                 <p className="finding-evidence">{f.evidence}</p>
+                <FindingActions finding={f} />
               </li>
             );
           })}
@@ -122,6 +163,7 @@ export function FindingCard({ finding, headingLevel = 3 }: { finding: Finding; h
         <span className="finding-label">근거</span> {finding.evidence}
       </p>
       <ItemChips ids={finding.items} />
+      <FindingActions finding={finding} />
     </article>
   );
 }

@@ -1,6 +1,9 @@
 // 개발용 가짜 점검 결과를 만든다: bun run src/ui/dev/make-fixture.ts
 // 실제 ~/.claude 는 읽지 않는다. 같은 입력이면 항상 같은 결과가 나오게 난수는 고정 씨앗을 쓴다.
-import type { Finding, Group, Item, ItemKind, Snapshot, Source } from "../../shared/types";
+import type { Finding, Group, Item, ItemKind, MdEdge, Snapshot, Source } from "../../shared/types";
+import { categoryOf, type RuleId } from "../../scan/findings";
+import { summaryOf } from "../../scan";
+import { a4 } from "../format";
 
 // ---- 고정 난수 ----
 let seed = 20261101;
@@ -132,62 +135,88 @@ add({
   outline: ["응답 원칙", "프롬프트 층 소유 규칙", "프로젝트 컨텍스트", "코드 작성 규칙", "업무 지식 캐시", "검증과 지시 함정", "에이전트 위임"],
 });
 add({
-  kind: "instruction", name: "CLAUDE.md", source: project("nestads-frontend"), path: "C:/lash/nestads-frontend/CLAUDE.md",
+  kind: "instruction", name: "CLAUDE.md", source: project("web-app"), path: "C:/work/web-app/CLAUDE.md",
   summary: "프론트엔드 레포의 작업 규칙. 스택, 폴더 구조, 컴포넌트 재사용 원칙을 적어 뒀어요.",
   chars: 4620, lines: 98, alwaysChars: 4620, outline: ["스택", "폴더 구조", "컴포넌트 규칙", "테스트"],
 });
 add({
-  kind: "instruction", name: "AGENTS.md", source: project("claude-checkup"), path: "C:/lash/claude-checkup/AGENTS.md",
+  kind: "instruction", name: "AGENTS.md", source: project("claude-checkup"), path: "C:/work/claude-checkup/AGENTS.md",
   summary: "Hearth 디자인 가이드. 색과 간격은 토큰만 쓰고, 글자 크기와 터치 영역 하한을 지켜요.",
   chars: 2310, lines: 54, alwaysChars: 2310, outline: ["디자인 규칙", "금지 목록"],
 });
 
 // ================= 메모리 =================
-const MEM_ROOT = "~/.claude/projects/C--lash/memory";
+const MEM_ROOT = "~/.claude/projects/C--work/memory";
 const memRows: [string, string, number][] = [
-  ["user_profile", "역할, 기술 스택, 도메인 전문성, 언어 선호", 9],
-  ["feedback_preferences", "영어 혼입 금지, 스킬 생성 금지 같은 개인 선호", 6],
-  ["feedback_collaboration_handoff", "Claude와 사용자 작업 구분, 대화형 스텝 처리", 3],
-  ["feedback_rework_causes", "되돌리기를 만든 원인 14종과 방지 규칙", 4],
-  ["feedback_wiki_width", "Confluence 위키는 항상 페이지 폭 wide로", 1],
-  ["feedback_code_analysis_speed", "코드 동작 질문은 레포 최신화 후 SDK 3종 병렬 조회", 2],
-  ["feedback_stock_data_routing", "종목 질문은 Supabase에서 오늘자 데이터를 먼저 본다", 0],
-  ["feedback_explain_before_agree", "의문이 제기되면 근거를 먼저 설명하고 동의한다", 5],
-  ["project_work_kb", "Jira, Confluence, Slack 로컬 캐시 구조와 갱신 절차", 12],
-  ["project_actc_studio", "단일 TC 관리 시스템 착수 기록", 2],
-  ["project_iphone_duo_policy", "iPhone Duo 화면 대응 정책 논의안", 0],
-  ["project_wp11011_delivery_priority", "매체 광고 유형별 송출 우선순위 결정 4건", 1],
-  ["project_krxdata_workflow", "주식 점수 산정 워크플로우와 공시 조회법", 0],
-  ["project_krxdata_validation_method", "백테스트 판정 전 필수 검증 6단", 0],
-  ["reference_sdk_code_index", "SDK 동작 질문 시 먼저 볼 코드 색인", 7],
-  ["reference_nestads_feature_doc_index", "기능별 문서 위키 목록", 2],
-  ["reference_token_rotation", "토큰 교체 절차 메모", 0],
-  ["reference_mcp_windows_path", "stdio MCP 가 Windows 경로에서 끊길 때 대처", 1],
+  ["profile_basics", "역할, 기술 스택, 도메인 전문성, 언어 선호", 9],
+  ["style_preferences", "영어 혼입 금지, 스킬 생성 금지 같은 개인 선호", 6],
+  ["handoff_rules", "Claude와 사용자 작업 구분, 대화형 스텝 처리", 3],
+  ["rework_causes", "되돌리기를 만든 원인 14종과 방지 규칙", 4],
+  ["wiki_layout", "Confluence 위키는 항상 페이지 폭 wide로", 1],
+  ["code_lookup_tips", "코드 동작 질문은 레포 최신화 후 SDK 3종 병렬 조회", 2],
+  ["data_source_routing", "종목 질문은 Supabase에서 오늘자 데이터를 먼저 본다", 0],
+  ["explain_before_agree", "의문이 제기되면 근거를 먼저 설명하고 동의한다", 5],
+  ["project_knowledge_cache", "Jira, Confluence, Slack 로컬 캐시 구조와 갱신 절차", 12],
+  ["project_test_hub", "단일 TC 관리 시스템 착수 기록", 2],
+  ["project_foldable_policy", "iPhone Duo 화면 대응 정책 논의안", 0],
+  ["project_delivery_priority", "매체 광고 유형별 송출 우선순위 결정 4건", 1],
+  ["project_stock_scoring", "주식 점수 산정 워크플로우와 공시 조회법", 0],
+  ["project_backtest_checks", "백테스트 판정 전 필수 검증 6단", 0],
+  ["reference_code_index", "SDK 동작 질문 시 먼저 볼 코드 색인", 7],
+  ["reference_feature_doc_index", "기능별 문서 위키 목록", 2],
+  ["reference_key_rotation", "토큰 교체 절차 메모", 0],
+  ["reference_service_path_fix", "stdio MCP 가 Windows 경로에서 끊길 때 대처", 1],
 ];
 for (const [name, summary, c] of memRows) {
   add({
-    kind: "memory", name, source: project("lash"), path: `${MEM_ROOT}/${name}.md`, summary, count30: c,
+    kind: "memory", name, source: project("notes"), path: `${MEM_ROOT}/${name}.md`, summary, count30: c,
     chars: rint(600, 3800), outline: name.startsWith("feedback") ? ["규칙", "이유", "적용 시점"] : ["개요", "현재 상태", "다음 단계"],
   });
 }
 for (const [name, summary, c] of [
-  ["feedback_component_reuse", "DS 컴포넌트 재사용을 먼저 확인한다", 3],
-  ["project_admin_list_fit", "어드민 목록 화면 폭 맞춤 규칙", 0],
-  ["reference_playwright_setup", "테스트 환경 준비 절차", 0],
+  ["component_reuse", "DS 컴포넌트 재사용을 먼저 확인한다", 3],
+  ["project_list_layout", "어드민 목록 화면 폭 맞춤 규칙", 0],
+  ["reference_test_setup", "테스트 환경 준비 절차", 0],
 ] as [string, string, number][]) {
   add({
-    kind: "memory", name, source: project("nestads-frontend"), path: `~/.claude/projects/C--lash-nestads-frontend/memory/${name}.md`,
+    kind: "memory", name, source: project("web-app"), path: `~/.claude/projects/C--work-web-app/memory/${name}.md`,
     summary, count30: c, chars: rint(500, 2400), outline: ["개요", "규칙"],
   });
 }
+// 연결 지도용: 다른 메모리를 거쳐야 닿는 파일(2단계), 목차가 없는 폴더(길 없음)
+for (const [name, summary, c] of [
+  ["reference_code_index_details", "코드 색인의 세부 항목 모음", 1],
+  ["project_test_hub_log", "단일 TC 관리 시스템 회차별 기록", 0],
+  ["rework_causes_archive", "예전 되돌리기 사례 원문", 0],
+] as [string, string, number][]) {
+  add({ kind: "memory", name, source: project("notes"), path: `${MEM_ROOT}/${name}.md`, summary, count30: c, chars: rint(700, 2600), outline: ["개요", "기록"] });
+}
+for (const [name, summary, c] of [
+  ["old_api_notes", "예전 API 서버 작업 메모", 0],
+  ["old_deploy_steps", "예전 배포 절차", 0],
+  ["old_review_log", "예전 코드 리뷰 기록", 1],
+  ["old_glossary", "예전 용어 정리", 0],
+] as [string, string, number][]) {
+  add({
+    kind: "memory", name, source: project("legacy-api"), path: `~/.claude/projects/C--work-legacy-api/memory/${name}.md`,
+    summary, count30: c, chars: rint(500, 2200), outline: ["개요"],
+  });
+}
+for (const [name, summary] of [
+  ["scratch_ideas", "정리 안 된 아이디어 메모"],
+  ["travel_checklist", "출장 준비 목록"],
+  ["tool_shortcuts", "자주 쓰는 단축키 정리"],
+] as [string, string][]) {
+  add({ kind: "memory", name, source: USER, path: `~/.claude/memory/${name}.md`, summary, count30: 0, chars: rint(300, 1400), outline: ["메모"] });
+}
 add({
-  kind: "memory-index", name: "MEMORY.md", source: project("lash"), path: `${MEM_ROOT}/MEMORY.md`,
+  kind: "memory-index", name: "MEMORY.md", source: project("notes"), path: `${MEM_ROOT}/MEMORY.md`,
   summary: "메모리 파일 목차. 한 줄에 파일 하나와 한 줄 설명이 있어요.",
   chars: 41200, lines: 214, alwaysChars: 24000, alwaysWhat: "앞 200줄 (201줄부터는 읽히지 않아요)",
   outline: ["항상 참조", "나머지 개인 메모리", "진행 중인 기획", "개인 PC 트러블슈팅"],
 });
 add({
-  kind: "memory-index", name: "MEMORY.md", source: project("nestads-frontend"), path: "~/.claude/projects/C--lash-nestads-frontend/memory/MEMORY.md",
+  kind: "memory-index", name: "MEMORY.md", source: project("web-app"), path: "~/.claude/projects/C--work-web-app/memory/MEMORY.md",
   summary: "프론트엔드 레포 메모리 목차.",
   chars: 9800, lines: 186, alwaysChars: 9800, alwaysWhat: "파일 전체 (186줄)", outline: ["규칙", "참고"],
 });
@@ -197,8 +226,8 @@ const SK = "~/.claude/skills";
 bulk("skill", USER, [
   ["my-design", "Hearth 디자인 시스템으로 화면과 제안서 장표를 만들고 고치고 판정해요", 6, [6, 0]],
   ["compound", "하네스를 실사용 기록을 근거로 개선해요", 2, [2, 0]],
-  ["nestads-update", "NestAds 레포 6개를 한 번에 최신으로 맞춰요", 4, [3, 1]],
-  ["work-kb-qa", "NestAds의 단일 사실과 현재 상태 질문에 원문 근거로 답해요", 12, [1, 11]],
+  ["repo-sync", "레포 6개를 한 번에 최신으로 맞춰요", 4, [3, 1]],
+  ["fact-lookup", "서비스의 단일 사실과 현재 상태 질문에 원문 근거로 답해요", 12, [1, 11]],
   ["deep-research", "복잡한 주제를 나눠 웹에서 찾고 교차 검증해 보고서로 정리해요", 0],
   ["new-service-advisor", "신규 서비스 아이디어를 시장, 경쟁, 팀 구성까지 분석해요", 0],
 ], true, SK);
@@ -221,11 +250,11 @@ bulk("agent", BUILTIN, [
 // ================= 플러그인 =================
 interface Plug { name: string; blurb: string; enabled?: boolean }
 const plugins: Plug[] = [
-  { name: "nestads-product-review", blurb: "기획서를 다섯 가지 관점으로 검토해요" },
-  { name: "nestads-product", blurb: "NestAds 정책서와 AC 검토 도구" },
-  { name: "nestads-frontend-pipeline", blurb: "프론트엔드 개발 파이프라인" },
-  { name: "nestads-frontend", blurb: "어드민 화면 테스트 도구" },
-  { name: "nestads-backend-pipeline", blurb: "백엔드 개발 파이프라인" },
+  { name: "doc-review", blurb: "기획서를 다섯 가지 관점으로 검토해요" },
+  { name: "doc-tools", blurb: "정책서와 AC 검토 도구" },
+  { name: "web-pipeline", blurb: "프론트엔드 개발 파이프라인" },
+  { name: "web-testing", blurb: "어드민 화면 테스트 도구" },
+  { name: "api-pipeline", blurb: "백엔드 개발 파이프라인" },
   { name: "vercel", blurb: "Vercel 배포와 성능 도구" },
   { name: "superpowers", blurb: "계획, 디버깅, 검증 작업 습관" },
   { name: "commit-commands", blurb: "커밋과 PR 만들기 명령" },
@@ -238,23 +267,23 @@ const plugins: Plug[] = [
 ];
 const PL = "~/.claude/plugins/cache";
 
-bulk("skill", plugin("nestads-product-review"), [
+bulk("skill", plugin("doc-review"), [
   ["plan-review", "기획서를 다섯 가지 관점(정책, 읽기 쉬움, 개발 규칙, 실제로 만들 수 있는지, 자주 빠뜨리는 것)으로 나눠 검토하고 결과를 하나로 합쳐요", 14, [9, 5]],
   ["plan-diff", "기획서 두 판의 달라진 점을 정리해요", 2, [2, 0]],
   ["kb-harvest", "개발 리뷰 질문을 모아 누락 패턴 지식으로 정리해요", 3, [3, 0]],
   ["review-feedback", "리뷰 지적 중 오탐을 패턴으로 쌓아요", 1, [1, 0]],
-], true, `${PL}/nestads-product-review`);
-bulk("agent", plugin("nestads-product-review"), [
+], true, `${PL}/doc-review`);
+bulk("agent", plugin("doc-review"), [
   ["plan-lens-policy", "정책 문서와 비교해 기획서의 충돌과 누락을 찾아요", 14],
   ["plan-lens-readability", "기획서 문장이 읽기 쉬운지 점검해요", 14],
   ["plan-lens-dev-policy", "개발 쪽에 이미 있는 규칙을 기획서가 고려했는지 봐요", 14],
   ["plan-lens-impl-fitness", "실제 시스템 기준으로 만들 수 있는 기획인지 봐요", 11],
   ["plan-lens-kb", "과거 리뷰에서 반복된 누락이 이번에도 있는지 봐요", 14],
-], true, `${PL}/nestads-product-review/agents`);
-bulk("skill", plugin("nestads-product"), [
-  ["nestads-policy", "NestAds 정책서에서 현행 규칙을 찾아 답해요", 6, [1, 5]],
-  ["nestads-product-ac-review", "AC와 TC 문장이 읽기 쉬운지 검토해요", 2, [2, 0]],
-], true, `${PL}/nestads-product`);
+], true, `${PL}/doc-review/agents`);
+bulk("skill", plugin("doc-tools"), [
+  ["policy-lookup", "정책서에서 현행 규칙을 찾아 답해요", 6, [1, 5]],
+  ["criteria-review", "AC와 TC 문장이 읽기 쉬운지 검토해요", 2, [2, 0]],
+], true, `${PL}/doc-tools`);
 
 const FRONT_SKILLS: Row[] = [
   ["api-integration", "백엔드 API를 화면 코드에 연결해요", 0], ["branch-from-ticket", "Jira 티켓에서 브랜치 이름을 만들어요", 0],
@@ -265,31 +294,31 @@ const FRONT_SKILLS: Row[] = [
   ["feature-planner", "기능 구현 계획을 세워요", 0], ["figma-jira-prd", "Figma와 Jira로 요구사항 문서를 만들어요", 0],
   ["quick-fix", "작은 버그를 빠르게 고쳐요", 0], ["refactor", "동작은 그대로 두고 구조를 정리해요", 0],
 ];
-bulk("skill", plugin("nestads-frontend-pipeline"), FRONT_SKILLS, true, `${PL}/nestads-frontend-pipeline`);
-bulk("agent", plugin("nestads-frontend-pipeline"), [
+bulk("skill", plugin("web-pipeline"), FRONT_SKILLS, true, `${PL}/web-pipeline`);
+bulk("agent", plugin("web-pipeline"), [
   ["architect", "요구사항을 분석해 화면 설계를 해요", 0], ["code-reviewer", "PR 올리기 전에 코드 리뷰를 해요", 0],
   ["executor", "설계대로 코드를 작성해요", 0], ["vitest-test-engineer", "단위 테스트를 써요", 0],
   ["playwright-test-generator", "브라우저 테스트를 만들어요", 0], ["playwright-test-healer", "깨진 브라우저 테스트를 고쳐요", 0],
   ["playwright-test-planner", "브라우저 테스트 계획을 세워요", 0],
-], true, `${PL}/nestads-frontend-pipeline/agents`);
-bulk("agent", plugin("nestads-frontend"), [
-  ["nestads-admin-playwright-test-generator", "어드민 화면 테스트를 만들어요", 0],
-  ["nestads-admin-playwright-test-healer", "어드민 화면 테스트를 고쳐요", 0],
-  ["nestads-admin-playwright-test-planner", "어드민 화면 테스트 계획을 세워요", 0],
-], true, `${PL}/nestads-frontend/agents`);
-bulk("skill", plugin("nestads-frontend"), [
+], true, `${PL}/web-pipeline/agents`);
+bulk("agent", plugin("web-testing"), [
+  ["e2e-test-generator", "어드민 화면 테스트를 만들어요", 0],
+  ["e2e-test-healer", "어드민 화면 테스트를 고쳐요", 0],
+  ["e2e-test-planner", "어드민 화면 테스트 계획을 세워요", 0],
+], true, `${PL}/web-testing/agents`);
+bulk("skill", plugin("web-testing"), [
   ["analyze-legacy", "예전 화면 코드를 읽고 구조를 설명해요", 0], ["design-to-code", "Figma 화면을 코드로 옮겨요", 0],
-], true, `${PL}/nestads-frontend`);
+], true, `${PL}/web-testing`);
 
-bulk("skill", plugin("nestads-backend-pipeline"), [
+bulk("skill", plugin("api-pipeline"), [
   ["plan", "Jira 에픽과 Figma를 분석해 구현 계획을 써요", 2, [2, 0]], ["implement", "계획을 구현 설계서로 풀어요", 0],
   ["code-writer", "설계서대로 구현하고 테스트를 통과시켜요", 0], ["pr-description", "PR 설명을 써요", 0],
   ["reverse-merge", "운영 브랜치 변경을 개발 브랜치로 되돌려 합쳐요", 0], ["test-writer", "백엔드 테스트를 써요", 0],
-], true, `${PL}/nestads-backend-pipeline`);
-bulk("agent", plugin("nestads-backend-pipeline"), [
+], true, `${PL}/api-pipeline`);
+bulk("agent", plugin("api-pipeline"), [
   ["plan-agent", "Jira 에픽과 Figma를 분석해 계획을 써요", 2], ["implement-agent", "기존 코드를 훑어 구현 설계를 써요", 0],
   ["code-writer-agent", "테스트를 통과할 때까지 구현해요", 0],
-], true, `${PL}/nestads-backend-pipeline/agents`);
+], true, `${PL}/api-pipeline/agents`);
 
 const VERCEL_SKILLS = ["bootstrap", "deploy", "env", "status", "ai-gateway", "ai-sdk", "auth", "nextjs", "shadcn", "turbopack", "workflow", "vercel-cli", "vercel-functions", "verification"];
 bulk("skill", plugin("vercel"), VERCEL_SKILLS.map<Row>((n) => [n, `Vercel ${n} 관련 작업을 안내해요`, 0]), true, `${PL}/vercel`);
@@ -341,13 +370,13 @@ for (const p of plugins) {
 const MCPS: [string, Source, number, string][] = [
   ["atlassian", plugin("atlassian"), 142, "Jira와 Confluence 읽기, 쓰기"],
   ["figma", plugin("figma"), 86, "Figma 파일 읽기, 쓰기"],
-  ["wkb", USER, 204, "업무 지식 캐시 검색"],
-  ["nestads-admin", USER, 77, "NestAds 어드민 조회"],
+  ["kb-cache", USER, 204, "업무 지식 캐시 검색"],
+  ["admin-console", USER, 77, "어드민 조회"],
   ["playwright", USER, 31, "브라우저 조작"],
-  ["nestads-kibana", USER, 12, "Kibana 로그 조회"],
+  ["log-viewer", USER, 12, "Kibana 로그 조회"],
   ["slack", plugin("slack"), 0, "Slack 검색과 메시지"],
   ["telegram", USER, 0, "텔레그램 메시지"],
-  ["notebooklm-mcp", plugin("nestads-frontend"), 0, "NotebookLM 노트북 조회"],
+  ["notebooklm-mcp", plugin("web-testing"), 0, "NotebookLM 노트북 조회"],
   ["supabase", plugin("supabase"), 0, "Supabase 데이터베이스"],
 ];
 for (const [name, source, c, summary] of MCPS) {
@@ -360,7 +389,7 @@ interface H { event: string; matcher?: string; script: string; source: Source; r
 const HOOKS: H[] = [
   { event: "SessionStart", script: "session-start.mjs", source: USER, runs: 212, avg: 1800, max: 4100, fail: 0, inject: 3200 },
   { event: "UserPromptSubmit", script: "trigger-inject.mjs", source: USER, runs: 1240, avg: 3400, max: 9800, fail: 0, inject: 900 },
-  { event: "PreToolUse", matcher: "Bash|Write|Edit", script: "wkb-first.mjs", source: USER, runs: 3880, avg: 410, max: 2200, fail: 6 },
+  { event: "PreToolUse", matcher: "Bash|Write|Edit", script: "route-first.mjs", source: USER, runs: 3880, avg: 410, max: 2200, fail: 6 },
   { event: "PostToolUse", matcher: "Write|Edit", script: "design-gate.mjs", source: USER, runs: 640, avg: 780, max: 3100, fail: 0 },
   { event: "Stop", script: "compound-detector.mjs", source: USER, runs: 480, avg: 300, max: 900, fail: 0, inject: 220 },
   { event: "SessionStart", script: "session-start-seen-skills.mjs", source: plugin("vercel"), runs: 0, avg: 0, max: 0, fail: 0 },
@@ -374,41 +403,49 @@ for (const h of HOOKS) {
   });
   it.hook = {
     event: h.event, matcher: h.matcher, command: `bun run ~/.claude/harness/hooks/${h.script}`,
-    runs30: h.runs, avgMs: h.avg, maxMs: h.max, failures30: h.fail, injectedCharsAvg: h.inject,
+    runs30: h.runs, avgMs: h.avg, maxMs: h.max, failures30: h.fail, blocked30: 0, injectedCharsAvg: h.inject,
   };
   it.usage.count30 = h.runs;
   it.usage.daily30 = daily(h.runs);
 }
 
 // ================= 연결 =================
-const pr = idOf("skill", plugin("nestads-product-review"), "plan-review");
+const pr = idOf("skill", plugin("doc-review"), "plan-review");
 for (const a of ["plan-lens-policy", "plan-lens-readability", "plan-lens-dev-policy", "plan-lens-impl-fitness", "plan-lens-kb"]) {
-  link(pr, idOf("agent", plugin("nestads-product-review"), a));
+  link(pr, idOf("agent", plugin("doc-review"), a));
 }
-link(pr, idOf("memory", project("lash"), "project_work_kb"));
-link(idOf("skill", plugin("nestads-product-review"), "kb-harvest"), idOf("memory", project("lash"), "project_work_kb"));
-link(idOf("skill", plugin("nestads-backend-pipeline"), "plan"), idOf("agent", plugin("nestads-backend-pipeline"), "plan-agent"));
-link(idOf("skill", USER, "work-kb-qa"), idOf("mcp", USER, "wkb"));
+link(pr, idOf("memory", project("notes"), "project_knowledge_cache"));
+link(idOf("skill", plugin("doc-review"), "kb-harvest"), idOf("memory", project("notes"), "project_knowledge_cache"));
+link(idOf("skill", plugin("api-pipeline"), "plan"), idOf("agent", plugin("api-pipeline"), "plan-agent"));
+link(idOf("skill", USER, "fact-lookup"), idOf("mcp", USER, "kb-cache"));
 link(idOf("skill", plugin("atlassian"), "search-company-knowledge"), idOf("mcp", plugin("atlassian"), "atlassian"));
 link(idOf("skill", plugin("figma"), "figma-use"), idOf("mcp", plugin("figma"), "figma"));
-link(idOf("instruction", USER, "CLAUDE.md"), idOf("skill", USER, "work-kb-qa"));
+link(idOf("instruction", USER, "CLAUDE.md"), idOf("skill", USER, "fact-lookup"));
 link(idOf("instruction", USER, "CLAUDE.md"), idOf("agent", USER, "code-reviewer"));
-link(idOf("instruction", USER, "CLAUDE.md"), idOf("memory", project("lash"), "feedback_preferences"));
-const MI = idOf("memory-index", project("lash"), "MEMORY.md");
+link(idOf("instruction", USER, "CLAUDE.md"), idOf("memory", project("notes"), "style_preferences"));
+const MI = idOf("memory-index", project("notes"), "MEMORY.md");
 for (const [name] of memRows) {
-  if (name === "reference_token_rotation" || name === "project_krxdata_validation_method") continue; // 목차에 없는 파일 (orphan 진단용)
-  link(MI, idOf("memory", project("lash"), name));
+  if (name === "reference_key_rotation" || name === "project_backtest_checks") continue; // 목차에 없는 파일 (unreachable-md 진단용)
+  link(MI, idOf("memory", project("notes"), name));
 }
-link(idOf("memory", project("lash"), "feedback_rework_causes"), idOf("memory", project("lash"), "feedback_explain_before_agree"));
-const MI2 = idOf("memory-index", project("nestads-frontend"), "MEMORY.md");
-for (const n of ["feedback_component_reuse", "project_admin_list_fit", "reference_playwright_setup"]) link(MI2, idOf("memory", project("nestads-frontend"), n));
+link(idOf("memory", project("notes"), "rework_causes"), idOf("memory", project("notes"), "explain_before_agree"));
+link(idOf("memory", project("notes"), "reference_code_index"), idOf("memory", project("notes"), "reference_code_index_details"));
+link(idOf("memory", project("notes"), "project_test_hub"), idOf("memory", project("notes"), "project_test_hub_log"));
+link(idOf("memory", project("notes"), "rework_causes"), idOf("memory", project("notes"), "rework_causes_archive"));
+// 이름만 언급된 길 (점선)
+const mentionPairs = new Set([`${idOf("memory", project("notes"), "reference_feature_doc_index")}|${idOf("memory", project("notes"), "project_test_hub_log")}`]);
+link(idOf("memory", project("notes"), "reference_feature_doc_index"), idOf("memory", project("notes"), "project_test_hub_log"));
+// 지시문이 @경로 로 불러오는 길
+const importPairs = new Set([`${idOf("instruction", USER, "CLAUDE.md")}|${idOf("memory", project("notes"), "style_preferences")}`]);
+const MI2 = idOf("memory-index", project("web-app"), "MEMORY.md");
+for (const n of ["component_reuse", "project_list_layout", "reference_test_setup"]) link(MI2, idOf("memory", project("web-app"), n));
 
 // ================= 진단 =================
 const findings: Finding[] = [];
-const F = (f: Omit<Finding, "id" | "steps" | "prompt"> & Partial<Pick<Finding, "steps" | "prompt">> & { key: string }) => {
+const F = (f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "steps" | "prompt"> & { rule: RuleId } & Partial<Pick<Finding, "category" | "fixKind" | "steps" | "prompt">> & { key: string }) => {
   const { key, ...rest } = f;
-  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다
-  findings.push({ id: `f-${key}`, steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
+  // 가짜 데이터의 할 일은 규칙 공통 문장으로 채운다. 분류는 스캐너 규칙 표, 고치는 방법은 manual 로 둔다 (화면 개발용)
+  findings.push({ id: `f-${key}`, category: categoryOf(rest.rule), fixKind: "manual", steps: [rest.fix], prompt: `${rest.title}. ${rest.fix}`, ...rest });
 };
 const fid = (kind: ItemKind, s: Source, name: string) => idOf(kind, s, name);
 
@@ -424,14 +461,14 @@ F({
   title: "자동 실행 규칙 하나가 한 달 동안 6번 실패했어요",
   why: "실패한 규칙은 AI에게 넣으려던 안내나 막으려던 동작이 빠졌다는 뜻일 수 있어요. 실패가 이어져도 화면에는 크게 드러나지 않을 수 있어요.",
   fix: "아래 규칙을 직접 한 번 실행해서 오류 메시지를 확인해 보세요. 경로가 바뀌었거나 프로그램이 설치돼 있지 않은 경우가 많아요.",
-  items: [fid("hook", USER, "PreToolUse: wkb-first.mjs")], evidence: "3,880번 중 6번 실패 (종료 코드가 0이 아니었어요).",
+  items: [fid("hook", USER, "PreToolUse: route-first.mjs")], evidence: "3,880번 중 6번 실패 (종료 코드가 0이 아니었어요).",
 });
 F({
   key: "unused-plugin-front", rule: "unused-plugin", severity: "medium",
-  title: "nestads-frontend-pipeline 플러그인을 한 달 동안 하나도 안 썼어요",
+  title: "web-pipeline 플러그인을 한 달 동안 하나도 안 썼어요",
   why: "켜 둔 플러그인은 안에 든 작업 설명서와 에이전트 목록이 대화마다 컨텍스트에 미리 채워져요. 안 쓰는데 켜져 있으면 자리만 차지해요.",
   fix: "당분간 안 쓴다면 플러그인을 꺼 두세요. 필요할 때 다시 켜면 돼요.",
-  items: items.filter((i) => i.source.plugin === "nestads-frontend-pipeline" && i.kind !== "plugin").map((i) => i.id),
+  items: items.filter((i) => i.source.plugin === "web-pipeline" && i.kind !== "plugin").map((i) => i.id),
   evidence: "작업 설명서 14개와 에이전트 7개, 합쳐서 21개를 한 번도 안 불렀어요. 목록이 대화마다 A4 약 1쪽을 차지해요.",
 });
 F({
@@ -462,7 +499,7 @@ F({
   title: "같은 규칙이 지시문과 메모리에 두 번 적혀 있어요",
   why: "같은 규칙이 여러 곳에 있으면 한쪽만 고쳤을 때 서로 달라져서 AI가 헷갈릴 수 있어요. 글자 수도 두 번 차지해요.",
   fix: "한 곳에만 남기고, 다른 곳에는 그 위치를 가리키는 한 줄만 두세요.",
-  items: [fid("instruction", USER, "CLAUDE.md"), fid("memory", project("lash"), "feedback_preferences")],
+  items: [fid("instruction", USER, "CLAUDE.md"), fid("memory", project("notes"), "style_preferences")],
   evidence: "정규화한 같은 줄 4개가 2곳에서 발견됐어요 (각 25자 이상).",
 });
 F({
@@ -470,7 +507,7 @@ F({
   title: "MEMORY.md가 가리키는 파일 2개가 없어요",
   why: "목차에는 있는데 파일이 없으면 AI가 읽으려다 실패하거나, 이미 없는 내용을 있다고 믿을 수 있어요.",
   fix: "없어진 파일의 줄을 목차에서 지우거나, 파일을 다시 만들어 주세요.",
-  items: [MI], evidence: "project_haru_life_sim.md, reference_figma_pat.md 를 찾지 못했어요.",
+  items: [MI], evidence: "project_old_notes.md, reference_old_keys.md 를 찾지 못했어요.",
 });
 F({
   key: "missing-desc", rule: "missing-description", severity: "medium",
@@ -484,8 +521,8 @@ F({
   title: "code-review 작업 설명서가 두 곳에 켜져 있어요",
   why: "이름이 같으면 어느 쪽이 실행될지 헷갈리고, 목록에도 두 번 올라가요.",
   fix: "쓰지 않는 쪽 플러그인을 끄거나 이름을 바꿔 주세요.",
-  items: [fid("skill", plugin("code-review"), "code-review"), fid("skill", plugin("nestads-frontend-pipeline"), "code-review")],
-  evidence: "code-review 플러그인과 nestads-frontend-pipeline 플러그인에 같은 이름이 있어요.",
+  items: [fid("skill", plugin("code-review"), "code-review"), fid("skill", plugin("web-pipeline"), "code-review")],
+  evidence: "code-review 플러그인과 web-pipeline 플러그인에 같은 이름이 있어요.",
 });
 F({
   key: "unused-items", rule: "unused-items", severity: "low",
@@ -497,10 +534,10 @@ F({
 });
 F({
   key: "unused-items-backend", rule: "unused-items", severity: "low",
-  title: "nestads-backend-pipeline에서 한 달 동안 안 쓴 것 7개",
+  title: "api-pipeline에서 한 달 동안 안 쓴 것 7개",
   why: "안 쓰는 항목도 목록 한 줄씩은 대화마다 읽혀요.",
   fix: "백엔드 작업이 드물다면 필요할 때만 플러그인을 켜 두세요.",
-  items: items.filter((i) => i.source.plugin === "nestads-backend-pipeline" && i.kind !== "plugin" && i.usage.count30 === 0).map((i) => i.id),
+  items: items.filter((i) => i.source.plugin === "api-pipeline" && i.kind !== "plugin" && i.usage.count30 === 0).map((i) => i.id),
   evidence: "9개 중 7개가 한 달 동안 0번이에요.",
 });
 F({
@@ -518,12 +555,28 @@ F({
   items: [MI2], evidence: "지금 186줄이에요 (한도 200줄).",
 });
 F({
-  key: "orphan", rule: "orphan-memory", severity: "low",
-  title: "목차에 없는 메모리 파일 2개",
+  key: "orphan", rule: "unreachable-md", severity: "medium",
+  title: "AI가 찾아갈 길이 없는 메모리 파일 2개",
   why: "목차에도 없고 다른 메모리에서도 연결되지 않으면 AI가 이 파일이 있는 줄 모를 수 있어요.",
   fix: "목차에 한 줄로 추가하거나, 필요 없다면 파일을 정리해 주세요.",
-  items: [fid("memory", project("lash"), "reference_token_rotation"), fid("memory", project("lash"), "project_krxdata_validation_method")],
+  items: [fid("memory", project("notes"), "reference_key_rotation"), fid("memory", project("notes"), "project_backtest_checks")],
   evidence: "MEMORY.md와 다른 메모리 어디에도 연결이 없어요.",
+});
+F({
+  key: "orphan-legacy", rule: "unreachable-md", severity: "medium",
+  title: "legacy-api 메모리 폴더에 AI가 찾아갈 길이 없는 파일 4개",
+  why: "이 폴더에는 MEMORY.md 가 없어서 AI가 파일이 있는 줄 몰라요.",
+  fix: "MEMORY.md 를 만들어 계속 쓸 파일을 한 줄씩 적어 주세요. 필요 없는 파일은 보관해 주세요.",
+  items: ["old_api_notes", "old_deploy_steps", "old_review_log", "old_glossary"].map((n) => fid("memory", project("legacy-api"), n)),
+  evidence: "목차 파일이 없는 폴더, 메모리 파일 4개 중 4개: old_api_notes, old_deploy_steps, old_review_log 외",
+});
+F({
+  key: "orphan-global", rule: "unreachable-md", severity: "medium",
+  title: "~/.claude/memory 폴더에 AI가 찾아갈 길이 없는 파일 3개",
+  why: "이 폴더는 Claude Code 가 메모리로 자동으로 읽는 곳이 아니라서, 여기에 MEMORY.md 를 만들어도 AI에게 닿지 않아요.",
+  fix: "전역 CLAUDE.md 에 그 파일의 경로를 적거나, 프로젝트 메모리 폴더로 옮겨 MEMORY.md 에 적어 주세요.",
+  items: ["scratch_ideas", "travel_checklist", "tool_shortcuts"].map((n) => fid("memory", USER, n)),
+  evidence: "목차 파일이 없는 폴더, 메모리 파일 3개 중 3개: scratch_ideas, travel_checklist, tool_shortcuts",
 });
 F({
   key: "similar", rule: "similar-description", severity: "low",
@@ -533,6 +586,59 @@ F({
   items: [fid("skill", plugin("figma"), "figma-design-to-code"), fid("skill", plugin("figma"), "figma-generate-design")],
   evidence: "설명에 쓴 단어 중 62퍼센트가 같아요.",
 });
+F({
+  key: "unread", rule: "unread-md", severity: "low",
+  title: "이어져 있지만 한 달 동안 안 읽힌 메모리 파일 3개",
+  why: "목차에는 있지만 한 번도 읽히지 않았어요. 오래된 내용이면 목차 줄만 자리를 차지해요.",
+  fix: "더 쓸 일이 없는 파일은 보관 폴더로 옮겨 두세요.",
+  items: [fid("memory", project("notes"), "data_source_routing"), fid("memory", project("notes"), "project_foldable_policy"), fid("memory", project("notes"), "project_stock_scoring")],
+  evidence: "notes 메모리 폴더에서 목차에 있는 18개 중 3개가 한 달 동안 0번 읽혔어요.",
+});
+F({
+  key: "secret", rule: "secret-in-file", severity: "high",
+  title: "메모리 파일 1개에 토큰이나 키로 보이는 값이 적혀 있어요",
+  why: "Claude가 이 파일을 읽으면 그 값이 대화 기록에도 남아요. 값은 이 앱도 보여 주지 않아요.",
+  fix: "값을 파일에서 지우고, 이미 노출됐다면 새 값으로 바꿔 주세요.",
+  items: [fid("memory", project("notes"), "reference_key_rotation")],
+  evidence: "reference_key_rotation.md 12번째 줄에 키로 보이는 값이 있어요.",
+  steps: ["reference_key_rotation.md 를 열어요.", "12번째 줄의 값을 지워요.", "이미 다른 곳에 올렸다면 해당 서비스에서 값을 새로 발급받아요."],
+});
+
+// 규칙별 고치는 방법과 얻는 것 (화면 개발용 가짜 값. 실제 스캐너의 사전 추정과 같은 꼴이다)
+const FIX_KIND: Partial<Record<RuleId, Finding["fixKind"]>> = {
+  "memory-index-truncated": "claude",
+  "broken-link": "claude",
+  "unreachable-md": "claude",
+  "unread-md": "mechanical",
+  "memory-index-near-limit": "claude",
+  "unused-plugin": "mechanical",
+  "unused-items": "mechanical",
+  "long-skill": "claude",
+  "duplicate-rule": "claude",
+  "similar-description": "claude",
+  "missing-description": "claude",
+};
+const tokensOfIds = (ids: string[]) => ids.reduce((n, id) => n + (byId.get(id)?.alwaysLoaded?.tokens ?? 0), 0);
+for (const f of findings) {
+  const kind = FIX_KIND[f.rule as RuleId];
+  if (kind) f.fixKind = kind;
+  const n = f.items.length;
+  if (f.rule === "unused-plugin" || f.rule === "unused-items") {
+    const tokens = tokensOfIds(f.items);
+    f.gain = { text: `대화마다 ${a4(tokens)}이 줄어요`, upTo: false, tokens };
+  } else if (f.rule === "memory-index-truncated") f.gain = { text: "최대 14줄이 다시 읽혀요", upTo: true, count: 14 };
+  else if (f.rule === "broken-link") f.gain = { text: "최대 2곳의 끊긴 링크가 없어져요", upTo: true, count: 2 };
+  else if (f.rule === "unreachable-md") f.gain = { text: `최대 ${n}개의 길 없는 파일이 줄어요`, upTo: true, count: n };
+  else if (f.rule === "unread-md") f.gain = { text: `안 읽히던 파일 ${n}개를 정리해요`, upTo: false, count: n };
+  else if (f.rule === "duplicate-rule") f.gain = { text: "최대 4개의 겹치는 줄이 한 곳으로 모여요", upTo: true, count: 4 };
+  else if (f.rule === "missing-description" || f.rule === "similar-description") f.gain = { text: "최대 1개를 AI가 더 알맞게 고르게 돼요", upTo: true, count: 1 };
+}
+
+const globalOrphan = findings.find((f) => f.id === "f-orphan-global");
+if (globalOrphan) {
+  globalOrphan.fixKind = "manual";
+  delete globalOrphan.gain;
+}
 
 for (const f of findings) {
   for (const id of f.items) {
@@ -577,6 +683,41 @@ const parts = [
 ];
 
 const mcpCalls = sum(items.filter((i) => i.kind === "mcp"), (i) => i.usage.count30);
+const context: Snapshot["context"] = {
+  budgetTokens: 200000,
+  totalTokens: parts.reduce((n, p) => n + p.tokens, 0),
+  unusedTokens: parts.reduce((n, p) => n + p.unusedTokens, 0),
+  parts,
+};
+
+// ================= 연결 그래프 (지시문, 목차, 메모리 파일만 노드) =================
+const mdItems = items.filter((i) => i.kind === "instruction" || i.kind === "memory-index" || i.kind === "memory");
+const mdIds = new Set(mdItems.map((i) => i.id));
+const entries = mdItems.filter((i) => i.kind !== "memory").map((i) => i.id);
+const depth = new Map<string, number>(entries.map((id) => [id, 0]));
+for (let queue = [...entries]; queue.length > 0; ) {
+  const id = queue.shift()!;
+  for (const to of byId.get(id)!.links.out) {
+    if (mdIds.has(to) && !depth.has(to)) {
+      depth.set(to, depth.get(id)! + 1);
+      queue.push(to);
+    }
+  }
+}
+const graph: Snapshot["graph"] = {
+  entries,
+  nodes: mdItems.map((i) => ({ id: i.id, depth: depth.get(i.id) ?? null, folder: (i.path ?? "").replace(/\/[^/]*$/, ""), read30: i.usage.count30 })),
+  edges: mdItems.flatMap((i) =>
+    i.links.out.filter((to) => mdIds.has(to)).map((to) => ({ from: i.id, to, kind: (i.kind === "memory-index" ? "index" : importPairs.has(`${i.id}|${to}`) ? "import" : mentionPairs.has(`${i.id}|${to}`) ? "mention" : "link") as MdEdge["kind"] })),
+  ),
+};
+const leaks: Snapshot["leaks"] = {
+  unreachable: graph.nodes.filter((n) => n.depth === null).length,
+  brokenLinks: 2,
+  unread: graph.nodes.filter((n) => n.depth !== null && n.depth > 0 && n.read30 === 0).length,
+  unusedTokens: context.unusedTokens,
+};
+const current = summaryOf({ generatedAt: NOW.toISOString(), context, findings, leaks });
 const snapshot: Snapshot = {
   version: 1,
   generatedAt: NOW.toISOString(),
@@ -590,16 +731,21 @@ const snapshot: Snapshot = {
     bytesScanned: 612_000_000,
     durationMs: 18420,
   },
-  context: {
-    budgetTokens: 200000,
-    totalTokens: parts.reduce((n, p) => n + p.tokens, 0),
-    unusedTokens: parts.reduce((n, p) => n + p.unusedTokens, 0),
-    parts,
-  },
+  context,
   items,
   groups,
   findings,
-  warnings: ["C:/lash/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."],
+  graph,
+  leaks,
+  summary: current,
+  previous: {
+    at: iso(9),
+    totalTokens: current.totalTokens + 4200,
+    unusedTokens: current.unusedTokens + 3600,
+    leaks: { ...leaks, unreachable: leaks.unreachable + 3, unread: leaks.unread + 1, unusedTokens: current.unusedTokens + 3600 },
+    byCategory: { ...current.byCategory, waste: current.byCategory.waste + 2, leak: current.byCategory.leak + 1 },
+  },
+  warnings: ["C:/work/old-project 폴더가 없어서 그 프로젝트의 지시문은 건너뛰었어요."],
 };
 
 const out = new URL("./fixture-snapshot.json", import.meta.url);

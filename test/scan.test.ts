@@ -1,12 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { appendFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { scan } from "../src/scan";
+import { diagnose, RULE_IDS, type DiagnoseCtx } from "../src/scan/findings";
 import { isSecretName, readText } from "../src/scan/fsutil";
+import { buildGraph } from "../src/scan/graph";
+import { buildInventory, redactCommand } from "../src/scan/inventory";
+import { buildLinks } from "../src/scan/links";
+import { todoFor } from "../src/scan/todo";
+import { isSectionKey } from "../src/ui/model";
 import { memoryLinks, parseFrontmatter, estimateTokens, summarize } from "../src/scan/text";
-import type { Finding, Item, Snapshot } from "../src/shared/types";
-import { buildFixtureHome, type Fixture } from "./fixtures/build";
+import type { Category, FixKind, Finding, Item, Severity, Snapshot } from "../src/shared/types";
+import { buildFixtureHome, buildHomeFrom, buildMiniHome, hookLine, type Fixture } from "./fixtures/build";
 
 let dir: string;
 let fx: Fixture;
@@ -20,6 +26,28 @@ const find = (id: string): Item => {
 };
 const rule = (r: string): Finding[] => snap.findings.filter((f) => f.rule === r);
 const findingsOf = (id: string): Finding[] => snap.findings.filter((f) => f.items.includes(id));
+
+// design.md 7절(분류·심각도)과 8-2절(고치는 방법)을 그대로 옮긴 표. 규칙을 더하면 여기에도 한 줄 더한다.
+// fixKind = 개인 파일 기준, plugin = 플러그인 출처 항목이 낀 경우, outside = .claude 밖 파일이 낀 경우,
+// unloaded = MEMORY.md 가 없고 Claude Code 가 메모리로 읽지 않는 폴더(~/.claude/projects/*/memory 가 아닌 곳)
+// secret-in-file 은 플러그인 파일을 제외한다(사용자가 못 고치는 예시 키가 맨 위에 뜨지 않게)
+const RULE_TABLE: Record<string, { category: Category; severity: Severity[]; fixKind: FixKind; plugin?: FixKind; outside?: FixKind; unloaded?: FixKind }> = {
+  "secret-in-file": { category: "risk", severity: ["high"], fixKind: "manual" },
+  "memory-index-truncated": { category: "broken", severity: ["high"], fixKind: "claude" },
+  "failing-hook": { category: "broken", severity: ["high", "medium"], fixKind: "manual", plugin: "mechanical" },
+  "broken-link": { category: "leak", severity: ["medium"], fixKind: "claude" },
+  "unreachable-md": { category: "leak", severity: ["medium"], fixKind: "claude", unloaded: "manual" },
+  "unread-md": { category: "leak", severity: ["low"], fixKind: "mechanical" },
+  "memory-index-near-limit": { category: "waste", severity: ["low"], fixKind: "claude" },
+  "unused-plugin": { category: "waste", severity: ["medium"], fixKind: "mechanical" },
+  "unused-items": { category: "waste", severity: ["low"], fixKind: "mechanical" },
+  "long-skill": { category: "waste", severity: ["low"], fixKind: "claude", plugin: "manual" },
+  "duplicate-rule": { category: "waste", severity: ["medium"], fixKind: "claude", outside: "manual" },
+  "slow-hook": { category: "waste", severity: ["medium"], fixKind: "manual", plugin: "mechanical" },
+  "duplicate-name": { category: "confusion", severity: ["medium"], fixKind: "manual" },
+  "similar-description": { category: "confusion", severity: ["low"], fixKind: "claude", plugin: "manual" },
+  "missing-description": { category: "confusion", severity: ["medium"], fixKind: "claude", plugin: "manual" },
+};
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "cc-fixture-"));
@@ -78,6 +106,125 @@ describe("비밀 파일 보호", () => {
   test("훅 명령 속 비밀 인자는 가린다", () => {
     const h = snap.items.find((i) => i.hook?.command.includes("unrun-hook"));
     expect(h?.hook?.command).toContain("***");
+  });
+});
+
+describe("보안 보강: 훅 명령 가리기, 막음, 중복", () => {
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  const at = (ms = 0) => new Date(now.getTime() - 60_000 - ms).toISOString();
+  const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`; // 줄 uuid
+  // 임시 홈 하나를 만들고 점검한 뒤 지운다
+  async function inMini<T>(commands: string[], transcripts: Record<string, string[]>, then: (s: Snapshot, home: string) => T | Promise<T>): Promise<T> {
+    const d = mkdtempSync(join(tmpdir(), "cc-mini-"));
+    try {
+      const home = buildMiniHome(d, commands, transcripts);
+      return await then(await scan(home, { now, cache: false }), home);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  }
+  const hookOf = (s: Snapshot, needle: string) => s.items.find((i) => i.hook?.command.includes(needle))!.hook!;
+
+  test("훅 이름과 id 에 토큰이 없다", async () => {
+    const cmds = [
+      "npx -y notifier --token=ghp_ABCDEFGHIJKLMNOPQRS",
+      "curl https://api.telegram.org/bot123456:ABCdefGHIjklMNOpqr/sendMessage",
+      "curl -u user:pass https://h",
+      'curl -H "Authorization: Basic dXNlcjpwYXNz" https://h',
+      'curl -H "Authorization: token abc123def456" https://h', // Basic/Bearer 가 아닌 방식: 이름 앞 40자에 값이 들어가는 길이
+      'curl -H "Authorization: Bot MTIzNDU2Nzg5.Gx7aBc" https://h',
+    ];
+    const rows = cmds.map((c, i) => hookLine(at(i * 1000), "Stop", c, 10, 0, "hook_success", "", uid(100 + i)));
+    await inMini(cmds, { s1: rows }, (s) => {
+      const json = JSON.stringify(s);
+      const bads = ["ghp_", "ABCdefGHI", "user:pass", "dXNlcjpwYXNz", "abc123def456", "MTIzNDU2Nzg5"];
+      for (const bad of bads) expect(json).not.toContain(bad);
+      const hooks = s.items.filter((i) => i.hook);
+      expect(hooks).toHaveLength(6);
+      for (const h of hooks) {
+        expect(h.hook!.runs30).toBe(1); // 가려도 대화 기록과는 원문으로 이어진다
+        for (const bad of bads) expect(`${h.name} ${h.id}`).not.toContain(bad); // 이름과 id 에도 없다
+      }
+    });
+  });
+
+  test("redactCommand: 모양별로 가리고, 멀쩡한 명령은 그대로 둔다", () => {
+    const secret: [string, string][] = [
+      ["tool --token=ghp_ABCDEFGHIJKLMNOPQRS", "ghp_"],
+      ["tool --token abcdef123", "abcdef123"],
+      ["tool --key=abcdef123", "abcdef123"],
+      ["tool --key abcdef123", "abcdef123"],
+      ["curl https://user:hunter2@host.example/x", "hunter2"],
+      ["curl https://api.telegram.org/bot123456:ABCdefGHIjklMNOpqr/sendMessage", "ABCdefGHI"],
+      ["curl -X POST https://hooks.slack.com/services/T00000000/B00000000/abcdEFGHijklMNOPqrst", "T00000000"],
+      ['curl -H "Authorization: Basic dXNlcjpwYXNz" https://h', "dXNlcjpwYXNz"],
+      ["curl -H 'Authorization: Bearer abc.def.ghi' https://h", "abc.def.ghi"],
+      ['curl -H "Authorization: token abc123def456" https://h', "abc123def456"],
+      ['curl -H "Authorization: Bot MTIzNDU2Nzg5.Gx7aBc" https://h', "MTIzNDU2Nzg5"],
+      ["curl -H 'authorization:ApiKey k-12345' https://h", "k-12345"], // 방식 이름이 무엇이든, 콜론 뒤 공백이 없어도
+      ['curl -H "Proxy-Authorization: Negotiate YIIabc123" https://h', "YIIabc123"],
+      ["curl -u user:pass https://h", "user:pass"],
+      ["curl --user user:pass https://h", "user:pass"],
+      ["run " + "a1B2c3D4".repeat(4), "a1B2c3D4a1B2c3D4"], // 32자 영숫자 덩어리
+    ];
+    for (const [cmd, leak] of secret) {
+      const out = redactCommand(cmd);
+      expect(out).not.toContain(leak);
+      expect(out).toContain("***");
+    }
+    // 음성 대조: 비밀이 아닌 것은 바뀌지 않는다
+    for (const ok of [
+      "bun run C:/fx/hooks/ok-hook.mjs",
+      "git push -u origin main",
+      "git clone ssh://git@github.com/o/r.git",
+      "curl https://example.com/api/v1/items",
+      "run " + "a1B2c3D4".repeat(4).slice(0, 31), // 31자는 덩어리로 보지 않는다
+    ]) expect(redactCommand(ok)).toBe(ok);
+  });
+
+  test("종료 코드 2는 막음", async () => {
+    const guard = "bun run C:/fx/hooks/guard-hook.mjs";
+    const bad = "bun run C:/fx/hooks/bad-hook.mjs";
+    const rows = [
+      ...[0, 1, 2].map((i) => hookLine(at(i * 1000), "Stop", guard, 20, 2, "hook_blocking_error", "", uid(200 + i))),
+      hookLine(at(9000), "Stop", bad, 20, 1, "hook_non_blocking_error", "", uid(300)), // 대조: 진짜 실패는 여전히 잡힌다
+    ];
+    await inMini([guard, bad], { s1: rows }, (s) => {
+      expect(hookOf(s, "guard-hook")).toMatchObject({ runs30: 3, failures30: 0, blocked30: 3 });
+      expect(hookOf(s, "bad-hook")).toMatchObject({ runs30: 1, failures30: 1, blocked30: 0 });
+      const failing = s.findings.filter((f) => f.rule === "failing-hook");
+      expect(failing).toHaveLength(1);
+      expect(failing[0].items[0]).toContain("bad-hook");
+    });
+  });
+
+  test("재개 복사본의 훅 기록은 한 번만", async () => {
+    const cmd = "bun run C:/fx/hooks/dup-hook.mjs";
+    const ok = hookLine(at(6000), "Stop", cmd, 10, 0, "hook_success", "", uid(401));
+    const fail = hookLine(at(5000), "Stop", cmd, 30, 1, "hook_non_blocking_error", "", uid(402));
+    await inMini([cmd], { a: [ok, fail], b: [ok, fail], c: [fail] }, (s) => {
+      expect(hookOf(s, "dup-hook")).toMatchObject({ runs30: 2, failures30: 1 }); // 같은 uuid 줄은 세 파일에 있어도 한 번
+    });
+    // 대조: uuid 가 다른 두 줄은 따로 센다
+    const fail2 = hookLine(at(4000), "Stop", cmd, 30, 1, "hook_non_blocking_error", "", uid(403));
+    await inMini([cmd], { a: [fail], b: [fail2] }, (s) => expect(hookOf(s, "dup-hook").failures30).toBe(2));
+  });
+
+  test("있는데 JSON 으로 못 읽은 설정 파일은 안내에 나온다", async () => {
+    await inMini(["bun run C:/fx/hooks/x-hook.mjs"], {}, async (s0, home) => {
+      expect(s0.warnings.join("\n")).not.toContain(".claude.json"); // 대조: 파일이 없으면 안내하지 않는다
+      writeFileSync(join(home, ".claude.json"), "{ broken");
+      const s = await scan(home, { now, cache: false });
+      expect(s.warnings.join("\n")).toContain("~/.claude.json");
+    });
+  });
+});
+
+describe("화면 모델", () => {
+  test("isSectionKey 는 자기 이름만 받고 상속 이름(constructor)은 거른다", () => {
+    for (const k of ["instruction", "skill", "hook", "mcp"]) expect(isSectionKey(k)).toBe(true);
+    for (const k of ["constructor", "toString", "__proto__", "hasOwnProperty", "", null, undefined]) expect(isSectionKey(k as string | null | undefined)).toBe(false);
   });
 });
 
@@ -166,7 +313,7 @@ describe("사용량", () => {
     expect(find("skill:user::good-skill").usage.count30).toBe(4);
     expect(find("mcp:user::svc-a").usage.count30).toBe(2);
     expect(snap.stats.prompts30).toBe(6);
-    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 12 });
+    expect(snap.stats.toolCalls30).toEqual({ read: 6, bash: 1, mcp: 3, other: 12 });
   });
   test("스킬 메타 줄과 도구 결과 안의 명령 이름은 세지 않는다", () => {
     expect(find("command:user::hello").usage).toMatchObject({ count30: 1, via: { user: 1 } });
@@ -216,7 +363,7 @@ describe("사용량", () => {
   test("통계: 대화·요청·도구 호출 수", () => {
     expect(snap.stats.sessions30).toBe(2); // 본 대화 + 재개된 복사본. 하위 에이전트와 60일 전 파일 제외
     expect(snap.stats.prompts30).toBe(6); // 일반 3 + 직접 부름 3, 중단·메타·도구 결과·하위 에이전트 제외
-    expect(snap.stats.toolCalls30).toEqual({ read: 3, bash: 1, mcp: 3, other: 12 });
+    expect(snap.stats.toolCalls30).toEqual({ read: 6, bash: 1, mcp: 3, other: 12 });
     expect(snap.stats.transcriptsScanned).toBe(4);
     expect(snap.window.days).toBe(30);
   });
@@ -277,15 +424,79 @@ describe("진단 규칙: 모두 한 번 이상 나온다", () => {
     const linked = snap.items.find((x) => x.id === "memory:project:fx-alpha:linked.md")!;
     expect(linked.links.out).toContain("memory:project:fx-alpha:secret-token-notes.md");
   });
-  test("orphan-memory: 연결 안 된 파일만", () => {
-    const f = rule("orphan-memory");
-    expect(f).toHaveLength(1);
-    expect(f[0].items).toEqual(["memory:project:fx-alpha:orphan.md"]);
+  test("unreachable-md: 메모리 폴더마다 1건, 길이 없는 파일만. orphan-memory 규칙은 없다", () => {
+    const f = rule("unreachable-md");
+    expect(f).toHaveLength(2); // alpha 의 orphan.md, MEMORY.md 가 없는 ~/.claude/memory 의 loose-note.md
+    const alpha = f.find((x) => x.items.includes("memory:project:fx-alpha:orphan.md"))!;
+    expect(alpha.items).toEqual(["memory:project:fx-alpha:orphan.md"]);
+    expect(alpha.category).toBe("leak");
+    expect(alpha.fixKind).toBe("claude");
+    expect(alpha.severity).toBe("medium");
+    expect(alpha.evidence).not.toContain("목차 파일이 없는 폴더");
+    const loose = f.find((x) => x.items.includes("memory:user::loose-note.md"))!;
+    expect(loose.evidence).toContain("목차 파일이 없는 폴더");
+    // ~/.claude/memory 는 Claude Code 가 메모리로 읽는 곳이 아니라서, MEMORY.md 를 만들라고 하지 않고 직접 하는 방법만 알려 준다
+    expect(loose.fixKind).toBe("manual");
+    expect(loose.steps.join(" ")).toContain("전역 CLAUDE.md");
+    expect(loose.steps.join(" ")).toContain("~/.claude/projects/<프로젝트>/memory/");
+    expect(loose.steps.join(" ")).not.toContain("새로 만들어요");
+    expect(loose.prompt).toContain("전역 CLAUDE.md");
+    expect(rule("orphan-memory")).toEqual([]);
   });
-  test("MEMORY.md 에 이름만 적힌 파일은 고아가 아니고 목차와 이어진다", () => {
+  test("MEMORY.md 에 이름만 적힌 파일은 길이 있고 목차와 이어진다", () => {
     const named = snap.items.find((x) => x.id === "memory:project:fx-alpha:named-only.md")!;
     expect(named.links.in).toContain("memory-index:project:fx-alpha:memory.md");
-    expect(rule("orphan-memory").flatMap((f) => f.items)).not.toContain(named.id);
+    expect(rule("unreachable-md").flatMap((f) => f.items)).not.toContain(named.id);
+    expect(snap.graph.nodes.find((n) => n.id === named.id)!.depth).toBe(1);
+  });
+  test("unread-md: 길은 있는데 30일 동안 안 읽힌 메모리, 폴더마다 1건", () => {
+    const f = rule("unread-md");
+    expect(f).toHaveLength(1);
+    expect(f[0].category).toBe("leak");
+    expect(f[0].fixKind).toBe("mechanical");
+    expect(f[0].severity).toBe("low");
+    // alpha: 읽힌 linked.md 와 목차, 길 없는 orphan.md 는 빠진다
+    expect(f[0].items.sort()).toEqual(["memory:project:fx-alpha:named-only.md", "memory:project:fx-alpha:notes-extra.md", "memory:project:fx-alpha:secret-token-notes.md"]);
+  });
+  test("secret-in-file: 파일마다 1건, 위험, 줄 번호만 남기고 값은 어디에도 없다", () => {
+    const secrets = rule("secret-in-file");
+    // 파일마다 1건: 메모리 notes-extra.md(두 줄)와 가짜 홈 good-skill(한 줄). 이름 때문에 안 연 파일은 없다
+    expect(secrets.flatMap((x) => x.items).sort()).toEqual(["memory:project:fx-alpha:notes-extra.md", "skill:user::good-skill"]);
+    expect(secrets.find((x) => x.items[0] === "skill:user::good-skill")!.evidence).toMatch(/^\d+번째 줄$/);
+    const f = secrets.filter((x) => x.items[0].endsWith("notes-extra.md"));
+    expect(f).toHaveLength(1);
+    expect(f[0].category).toBe("risk");
+    expect(f[0].severity).toBe("high");
+    expect(f[0].fixKind).toBe("manual");
+    expect(f[0].evidence).toBe("6번째 줄 외 1줄");
+    expect(f[0].steps.join(" ")).toContain("6, 9번째 줄");
+    expect(f[0].prompt).toContain("notes-extra.md");
+    expect(f[0].prompt).toContain("6, 9번째 줄");
+    const json = JSON.stringify(snap);
+    for (const v of ["ghp_FAKE", "xoxb-FAKE", "FAKEFAKE"]) expect(json).not.toContain(v);
+    expect(`${f[0].title}${f[0].why}${f[0].fix}${f[0].evidence}${f[0].steps.join("")}${f[0].prompt}`).not.toMatch(/[—–]/);
+  });
+  test("secret-in-file: 이름 때문에 열지 않은 파일은 검사 대상이 아니다", () => {
+    expect(rule("secret-in-file").flatMap((f) => f.items)).not.toContain("memory:project:fx-alpha:secret-token-notes.md");
+  });
+  test("secret-in-file: 값은 만들어지는 순간부터 없다 (가리기를 거치기 전 diagnose 와 todoFor 결과로 확인)", () => {
+    const inv = buildInventory(fx.home);
+    const { broken, edges } = buildLinks(inv.entries, inv.plugins, fx.home);
+    const ctx: DiagnoseCtx = { entries: inv.entries, plugins: inv.plugins, broken, graph: buildGraph(inv.entries, edges), claudeDir: join(fx.home, ".claude") };
+    // 대조: 원문에는 값이 정말 들어 있다 (없으면 아래 단언이 아무것도 못 잡는다)
+    const raw = inv.entries.filter((e) => e.item.id === "skill:user::good-skill" || e.item.id === "memory:project:fx-alpha:notes-extra.md");
+    expect(raw).toHaveLength(2);
+    for (const e of raw) expect(e.text).toMatch(/ghp_FAKEFAKEFAKEFAKE1234/);
+    const found = diagnose(ctx).filter((f) => f.rule === "secret-in-file");
+    expect(found).toHaveLength(2);
+    const byId = new Map(inv.entries.map((e) => [e.item.id, e] as const));
+    for (const f of found) {
+      const t = todoFor(f, ctx, byId);
+      const fields = [f.title, f.why, f.fix, f.evidence, f.items.join(" "), ...t.steps, t.prompt, t.command ?? ""];
+      expect(t.steps.length).toBeGreaterThanOrEqual(2);
+      for (const text of fields) for (const v of ["ghp_", "xoxb-", "FAKEFAKE"]) expect(text).not.toContain(v);
+      expect(JSON.stringify([f, t])).not.toMatch(/ghp_|xoxb-|FAKEFAKE/);
+    }
   });
   test("duplicate-rule: 25자 이상 같은 줄이 지시문·MEMORY.md 2곳에", () => {
     const f = rule("duplicate-rule");
@@ -344,20 +555,19 @@ describe("진단 규칙: 모두 한 번 이상 나온다", () => {
     expect(f[0].severity).toBe("high");
   });
   test("모든 설계 규칙이 나왔다", () => {
-    const want = [
-      "memory-index-truncated", "memory-index-near-limit", "broken-link", "orphan-memory", "duplicate-rule", "duplicate-name",
-      "similar-description", "missing-description", "unused-plugin", "unused-items", "long-skill", "slow-hook", "failing-hook",
-    ];
-    expect([...new Set(snap.findings.map((f) => f.rule))].sort()).toEqual([...want].sort());
+    expect([...new Set(snap.findings.map((f) => f.rule))].sort()).toEqual(Object.keys(RULE_TABLE).sort());
   });
 });
 
 describe("진단 규칙: 깨끗한 항목은 걸리지 않는다 (음성 대조)", () => {
   test("깨끗한 작업 설명서·에이전트·명령·훅에는 진단이 없다", () => {
     for (const id of [
-      "skill:user::good-skill", "command:user::hello", "agent:user::reviewer", "skill:plugin:plugin-a:helper",
+      "command:user::hello", "agent:user::reviewer", "skill:plugin:plugin-a:helper",
       "hook:user::userpromptsubmit · ok-hook.mjs", "hook:user::sessionstart · start-ok.mjs", "hook:user::posttooluse · unrun-hook.mjs",
     ]) expect(findingsOf(id).map((f) => f.rule)).toEqual([]);
+  });
+  test("good-skill 은 본문에 가짜 비밀값이 있어서 그 진단 하나만 받는다", () => {
+    expect(findingsOf("skill:user::good-skill").map((f) => f.rule)).toEqual(["secret-in-file"]);
   });
   test("깨끗한 메모리 폴더(gamma)와 프로젝트 메모리에는 진단이 없다", () => {
     const clean = snap.items.filter((x) => x.source.project === "fx-gamma" || (x.source.project === "proj-a" && x.kind.startsWith("memory")));
@@ -369,9 +579,9 @@ describe("진단 규칙: 깨끗한 항목은 걸리지 않는다 (음성 대조)
     expect(off.length).toBeGreaterThan(3);
     for (const i of off) expect(findingsOf(i.id)).toEqual([]);
   });
-  test("연결된 파일(linked.md, secret-token-notes.md)은 고아가 아니다", () => {
+  test("연결된 파일(linked.md, secret-token-notes.md)은 길 없음이 아니다", () => {
     expect(findingsOf("memory:project:fx-alpha:linked.md").map((f) => f.rule)).toEqual(["broken-link"]);
-    expect(findingsOf("memory:project:fx-alpha:secret-token-notes.md").map((f) => f.rule)).toEqual([]);
+    expect(findingsOf("memory:project:fx-alpha:secret-token-notes.md").map((f) => f.rule)).toEqual(["unread-md"]); // 이어져 있지만 안 읽혔다
   });
   test("쓰인 스킬은 unused-items 에 없다", () => {
     const unused = new Set(rule("unused-items").flatMap((f) => f.items));
@@ -379,7 +589,106 @@ describe("진단 규칙: 깨끗한 항목은 걸리지 않는다 (음성 대조)
   });
 });
 
+describe("진단 분류와 고치는 방법 (design.md 7절, 8-2절)", () => {
+  test("표가 규칙 목록과 같다 (규칙을 더하면 이 표도 더해야 한다)", () => {
+    expect(Object.keys(RULE_TABLE).sort()).toEqual([...RULE_IDS].sort());
+  });
+  test("가짜 홈의 모든 진단이 표대로다", () => {
+    for (const f of snap.findings) {
+      const want = RULE_TABLE[f.rule];
+      expect(want).toBeDefined();
+      expect(f.category).toBe(want.category);
+      expect(want.severity).toContain(f.severity);
+      const plugin = f.items.some((id) => find(id).source.type === "plugin");
+      const unloaded = f.evidence.includes("목차 파일이 없는 폴더") && !find(f.items[0]).path!.includes("/.claude/projects/");
+      expect(f.fixKind).toBe(plugin && want.plugin ? want.plugin : unloaded && want.unloaded ? want.unloaded : want.fixKind);
+    }
+  });
+  test("위험은 늘 맨 위에 온다", () => {
+    expect(snap.findings[0].category).toBe("risk");
+    const firstOther = snap.findings.findIndex((f) => f.category !== "risk");
+    expect(snap.findings.slice(firstOther).some((f) => f.category === "risk")).toBe(false);
+  });
+
+  test("플러그인 파일은 claude 규칙도 manual, 플러그인 훅은 mechanical, .claude 밖 파일이 낀 duplicate-rule 은 manual", async () => {
+    const d = mkdtempSync(join(tmpdir(), "cc-fixkind-"));
+    try {
+      const root = resolve(d);
+      const pdir = join(root, ".claude", "plugins", "cache", "mkt", "pp", "1.0.0");
+      const proj = join(root, "work", "p");
+      const same = "- 같은 규칙이 두 곳에 적혀 있는 긴 문장이에요 12345";
+      const desc = "Use this skill to review pull requests and report every problem in detail.";
+      const failCmd = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/fail.mjs"';
+      const slowCmd = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/slow.mjs"';
+      const at = new Date(fx.now.getTime() - 60_000).toISOString();
+      const home = buildHomeFrom(d, {
+        ".claude/settings.json": JSON.stringify({ enabledPlugins: { "pp@mkt": true } }),
+        ".claude/plugins/installed_plugins.json": JSON.stringify({ version: 2, plugins: { "pp@mkt": [{ scope: "user", installPath: pdir, version: "1.0.0" }] } }),
+        ".claude/plugins/cache/mkt/pp/1.0.0/.claude-plugin/plugin.json": JSON.stringify({ name: "pp", description: "테스트 플러그인" }),
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/long/SKILL.md": `---\nname: long\ndescription: A very long plugin skill that nobody should read in full.\n---\n\n` + "This sentence is repeated to make the file long. ".repeat(500),
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/nodesc/SKILL.md": "# 설명이 없는 작업 설명서\n본문\n",
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/sim-a/SKILL.md": `---\nname: sim-a\ndescription: ${desc}\n---\n본문 A\n`,
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/sim-b/SKILL.md": `---\nname: sim-b\ndescription: ${desc}\n---\n본문 B\n`,
+        ".claude/plugins/cache/mkt/pp/1.0.0/hooks/hooks.json": JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: failCmd }, { type: "command", command: slowCmd }] }] } }),
+        ".claude/CLAUDE.md": `# 전역\n${same}\n`,
+        ".claude.json": JSON.stringify({ projects: { [proj]: {} } }),
+        "work/p/CLAUDE.md": `# 프로젝트\n${same}\n`,
+        ".claude/skills/leaky/SKILL.md": "---\nname: leaky\ndescription: 비밀값이 들어 있는 개인 작업 설명서예요.\n---\n키: AKIAABCDEFGHIJKLMNOP\n",
+        // 플러그인 파일 안의 키 모양(대개 예시)은 사용자가 못 고치므로 secret-in-file 대상이 아니다 (음성 대조)
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/doc-example/SKILL.md": "---\nname: doc-example\ndescription: Plugin skill that mentions an example token for documentation purposes only.\n---\n예시: ghp_FAKEFAKEFAKEFAKE9999\n",
+        ".claude/projects/C--mini/s.jsonl": [hookLine(at, "Stop", failCmd, 10, 1, "hook_non_blocking_error"), hookLine(at, "Stop", slowCmd, 4000)].join("\n") + "\n",
+      });
+      const s = await scan(home, { now: fx.now, cache: false });
+      const one = (r: string): Finding => {
+        const f = s.findings.filter((x) => x.rule === r);
+        expect(f).toHaveLength(1);
+        return f[0];
+      };
+      for (const r of ["long-skill", "missing-description", "similar-description"]) {
+        expect(one(r).items.every((id) => id.includes(":plugin:pp:"))).toBe(true);
+        expect(one(r).fixKind).toBe("manual"); // 플러그인 안 파일은 claude 로 고치지 않는다
+      }
+      expect(one("failing-hook").fixKind).toBe("mechanical"); // claude plugin disable
+      expect(one("slow-hook").fixKind).toBe("mechanical");
+      const dup = one("duplicate-rule");
+      expect(dup.items.sort()).toEqual(["instruction:project:p:claude.md", "instruction:user::claude.md"]);
+      expect(dup.fixKind).toBe("manual"); // 프로젝트 저장소 안 파일
+      const sec = one("secret-in-file");
+      expect(sec.items).toEqual(["skill:user::leaky"]);
+      expect(sec.evidence).toBe("5번째 줄");
+      expect(sec.fixKind).toBe("manual");
+      expect(JSON.stringify(s)).not.toContain("AKIAABCDEFGH");
+      expect(JSON.stringify(s)).not.toContain("ghp_FAKE");
+      // 음성 대조가 헛돌지 않게: 그 플러그인 파일은 실제로 항목으로 읽혔고 본문에 키 모양이 있다
+      const ex = s.items.find((i) => i.id === "skill:plugin:pp:doc-example")!;
+      expect(ex.enabled).toBe(true);
+      expect(readText(join(pdir, "skills", "doc-example", "SKILL.md"))).toContain("ghp_FAKEFAKEFAKEFAKE9999");
+      expect(s.findings.some((f) => f.items.includes(ex.id) && f.rule === "secret-in-file")).toBe(false);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("진단 결과 형식", () => {
+  test("스냅샷 v2: 모든 진단에 분류와 고치는 방법, 그래프·누수·요약이 있고 요약은 진단 수와 맞는다", () => {
+    const cats = ["risk", "broken", "leak", "waste", "confusion"] as const;
+    for (const f of snap.findings) {
+      expect(cats).toContain(f.category);
+      expect(["mechanical", "claude", "manual"]).toContain(f.fixKind);
+    }
+    for (const k of ["entries", "nodes", "edges"] as const) expect(Array.isArray(snap.graph[k])).toBe(true);
+    expect(Object.keys(snap.leaks).sort()).toEqual(["brokenLinks", "unreachable", "unread", "unusedTokens"]);
+    expect(snap.leaks).toEqual({ unreachable: 2, brokenLinks: 2, unread: 3, unusedTokens: snap.context.unusedTokens });
+    expect(snap.summary.at).toBe(snap.generatedAt);
+    expect(snap.summary.totalTokens).toBe(snap.context.totalTokens);
+    expect(snap.summary.unusedTokens).toBe(snap.context.unusedTokens);
+    expect(snap.summary.leaks).toEqual(snap.leaks);
+    expect(Object.keys(snap.summary.byCategory).sort()).toEqual([...cats].sort());
+    for (const c of cats) expect(snap.summary.byCategory[c]).toBe(snap.findings.filter((f) => f.category === c).length);
+    expect(cats.reduce((n, c) => n + snap.summary.byCategory[c], 0)).toBe(snap.findings.length);
+    expect(snap.previous).toBeUndefined();
+  });
   test("심각도 순으로 정렬, id 는 유일, 문구는 해요체이고 대시가 없다", () => {
     const order = { high: 0, medium: 1, low: 2 } as const;
     for (let i = 1; i < snap.findings.length; i++) expect(order[snap.findings[i - 1].severity]).toBeLessThanOrEqual(order[snap.findings[i].severity]);
@@ -440,6 +749,7 @@ describe("캐시와 예외", () => {
     const b = await scan(fx.home, { now: fx.now });
     for (const s of [a, b]) {
       s.generatedAt = "";
+      s.summary.at = "";
       s.stats.durationMs = 0;
     }
     expect(b).toEqual(a);
@@ -459,6 +769,9 @@ describe("캐시와 예외", () => {
       expect(s.items).toEqual([]);
       expect(s.warnings.join(" ")).toContain(".claude 폴더");
       expect(s.context.totalTokens).toBe(0);
+      expect(s.graph).toEqual({ entries: [], nodes: [], edges: [] });
+      expect(s.leaks).toEqual({ unreachable: 0, brokenLinks: 0, unread: 0, unusedTokens: 0 });
+      expect(s.findings).toEqual([]);
     } finally {
       rmSync(empty, { recursive: true, force: true });
     }
