@@ -7,7 +7,7 @@ import index from "../ui/index.html";
 import { expandHome, isSecretName, readText, redactSecrets } from "../scan/fsutil";
 import { scanWithCore, type ScanCore } from "../scan";
 import { appendHistory, previousOf } from "../scan/history";
-import { ChangedSinceError, applyPlanned, listBackups, undo } from "../fix/backup";
+import { ApplyFailedError, ChangedSinceError, applyPlanned, listBackups, undo } from "../fix/backup";
 import { claudeEnv, resolveClaude, runClaudeCli } from "../fix/claude";
 import { ClaudeUnavailableError, FixRequestError, buildPreview, claudeJobOf, estimateUsage, resolveTarget, tokenWords, withArchive, type Built } from "../fix/preview";
 import type { ClaudeEnv, FixJob, FixRequest, Item, Progress, Settings, Snapshot } from "../shared/types";
@@ -174,7 +174,9 @@ export function startServer(opts: ServerOpts): Running {
     return env;
   };
   // 못 찾으면 127 이 돌아오고, 플러그인 끄기는 설정 파일로 대신한다
-  const runClaude = (args: string[]) => runClaudeCli(resolveClaude(), args);
+  // --home 으로 다른 홈을 볼 때는 실제 사용자 설정을 건드리지 않게 CLI 를 쓰지 않고 설정 파일 경로만 쓴다
+  const realHome = resolve(home).toLowerCase() === resolve(homedir()).toLowerCase();
+  const runClaude = realHome ? (args: string[]) => runClaudeCli(resolveClaude(), args) : undefined;
 
   // 화면에 나가는 말: 비밀값을 가리고 홈 절대경로는 ~ 로 줄인다
   const homeForms = [...new Set([home, home.replace(/\\/g, "/")])].sort((a, b) => b.length - a.length);
@@ -452,7 +454,8 @@ export function startServer(opts: ServerOpts): Running {
               manifest = await applyPlanned(home, withArchive(home, built, body.archive), st.job.request.findingId, runClaude);
             } catch (e) {
               if (e instanceof ChangedSinceError) return json({ error: e.message }, 409);
-              return json({ error: say(`적용하지 못했어요. 파일은 원래대로예요. ${e instanceof Error ? e.message : ""}`.trim()) }, 400);
+              if (e instanceof ApplyFailedError) return json({ error: say(e.message) }, 400);
+              return json({ error: say(`적용하지 못했어요. ${e instanceof Error ? e.message : ""}`.trim()) }, 400);
             } finally {
               st.applying = false;
             }

@@ -135,6 +135,10 @@ export function createFixRoutes({ fixture, getSettings }: Deps) {
       return json({ ok: true, message: "원래대로 되돌렸어요. 다시 점검한 결과를 반영했어요." });
     },
 
-    "/api/fix/backups": () => json([]),
+    "/api/fix/backups": () =>
+      json([
+        { id: "20261101-120000-000", at: new Date(Date.now() - 3600_000).toISOString(), findingId: "f1", status: "applied", files: ["settings.json"], moves: [], plugins: ["plugin-unused@mkt"] },
+        { id: "20261031-090000-000", at: new Date(Date.now() - 86400_000).toISOString(), findingId: "f2", status: "undone", files: [], moves: ["skills/unused-one"], plugins: [] },
+      ]),
   };
 }

@@ -568,7 +568,7 @@ function PreviewBody({
       </div>
 
       <div className="note">
-        <p>적용하면 원본을 먼저 ~/.claude-checkup/backups/ 에 저장해요. 마음에 안 들면 "되돌리기" 한 번으로 원래대로 돌아가요.</p>
+        <p>적용하면 원본을 먼저 ~/.claude-checkup/backups/ 에 저장해요. 마음에 안 들면 이 화면이나 설정의 "최근 고친 것"에서 "되돌리기" 한 번으로 원래대로 돌아가요.</p>
         {restart && <p>끄는 것이지 지우는 것이 아니에요. Claude Code를 다시 시작하면 적용돼요.</p>}
         {job.kind === "claude" && p.usage ? (
           <p>

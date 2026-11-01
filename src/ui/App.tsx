@@ -165,7 +165,7 @@ function Shell() {  const { theme, toggle } = useTheme();
   return (
     <main className="page">
       {body}
-      {overlay === "settings" && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setOverlay(null)} />}
+      {overlay === "settings" && <SettingsModal settings={settings} onChange={setSettings} onChanged={refresh} onClose={() => setOverlay(null)} />}
     </main>
   );
 }

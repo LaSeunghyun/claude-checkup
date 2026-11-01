@@ -265,5 +265,15 @@ export interface TelemetryEvent {
 // POST /api/fix/preview        -> FixJob     body: FixRequest
 // GET  /api/fix/job?id=        -> FixJob
 // POST /api/fix/apply          -> FixJob     body: { jobId: string; archive?: string[] }  archive = 보관 후보 중 사용자가 체크한 itemId
+export interface FixBackup {
+  id: string;
+  at: string;
+  findingId: string;
+  status: "applying" | "applied" | "undone";
+  files: string[];
+  moves: string[];
+  plugins: string[];
+}
+
 // POST /api/fix/undo           -> { ok: boolean; message: string }  body: { backupId: string }
 // GET  /api/fix/backups        -> { id, at, findingId, status, files: string[], moves: string[], plugins: string[] }[]  최근 것부터, 경로는 .claude 기준

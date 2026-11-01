@@ -11,7 +11,7 @@ export function isSecretName(p: string): boolean {
 }
 
 // 글 속에 섞여 있을지 모르는 비밀값 모양을 가린다 (화면에 나가는 모든 글에 적용)
-const SECRET_VALUE_RE = /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|xox[bpoas]-[A-Za-z0-9-]{8,}|ATATT[A-Za-z0-9_=-]{8,}|figd_[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,})|eyJ[A-Za-z0-9_-]{20,}(?:\.[A-Za-z0-9_-]+)*/g;
+const SECRET_VALUE_RE = /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|xox[bpoas]-[A-Za-z0-9-]{8,}|ATATT[A-Za-z0-9_=-]{8,}|figd_[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,}|[sr]k_live_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{20,}|glpat-[A-Za-z0-9_-]{10,})|-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)?|https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9\/]+|eyJ[A-Za-z0-9_-]{20,}(?:\.[A-Za-z0-9_-]+)*/g;
 
 export function redactSecrets(s: string): string {
   return s.replace(SECRET_VALUE_RE, "***");

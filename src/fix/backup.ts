@@ -1,6 +1,6 @@
 // 적용(백업 -> 반영)과 되돌리기. 해시로 "그사이 바뀌었는지"를 본다.
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type { Overlay } from "../scan/fsutil";
 import type { FileChange } from "../shared/types";
@@ -23,13 +23,29 @@ export interface Manifest {
   moves: { fromRel: string; toRel: string }[]; // toRel 은 HOME/.claude-checkup/off 기준
   pluginKeys: string[];
   cliKeys?: string[]; // claude plugin disable 로 끈 키
-  status?: "applying" | "applied" | "failed";
+  status?: "applying" | "applied" | "failed" | "undone";
 }
 
 export class ChangedSinceError extends Error {
   constructor() {
     super("파일이 그사이 바뀌었어요, 미리 보기를 다시 만들어 주세요");
     this.name = "ChangedSinceError";
+  }
+}
+
+// 적용 도중 실패. restored 는 원래대로 돌리는 일이 실제로 끝났는지다
+export class ApplyFailedError extends Error {
+  constructor(
+    public detail: string,
+    public restored: boolean,
+    public backupDir: string,
+  ) {
+    super(
+      restored
+        ? `적용하지 못했어요. 파일은 원래대로예요. ${detail}`.trim()
+        : `적용하지 못했고 원래대로 돌리는 일도 끝내지 못했어요. 원본은 백업 폴더에 있어요: ${backupDir}. ${detail}`.trim(),
+    );
+    this.name = "ApplyFailedError";
   }
 }
 
@@ -49,7 +65,13 @@ export function hashPath(abs: string): string {
   const h = createHash("sha256");
   const walk = (d: string, pre: string) => {
     for (const e of readdirSync(d, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
-      if (e.isDirectory()) {
+      if (e.isSymbolicLink()) {
+        let t = "?";
+        try {
+          t = readlinkSync(join(d, e.name));
+        } catch {}
+        h.update("l:" + pre + e.name + ":" + t + "\n"); // 링크는 따라가지 않는다
+      } else if (e.isDirectory()) {
         h.update("d:" + pre + e.name + "\n");
         walk(join(d, e.name), pre + e.name + "/");
       } else h.update("f:" + pre + e.name + ":" + sha(readFileSync(join(d, e.name))) + "\n");
@@ -72,14 +94,21 @@ function move(from: string, to: string) {
   mkdirSync(dirname(to), { recursive: true });
   try {
     renameSync(from, to);
-  } catch {
+  } catch (e: any) {
+    if (e?.code !== "EXDEV") throw e; // 잠김·권한 같은 실패는 원본을 건드리지 않고 그대로 알린다
     try {
       cpSync(from, to, { recursive: true });
-    } catch (e) {
+    } catch (e2) {
       rmSync(to, { recursive: true, force: true }); // 반쯤 복사된 것은 지운다. 원본은 그대로다
-      throw e;
+      throw e2;
     }
-    rmSync(from, { recursive: true, force: true });
+    try {
+      rmSync(from, { recursive: true, force: true });
+    } catch (e3) {
+      cpSync(to, from, { recursive: true, force: true }); // 원본이 반쯤 지워졌으면 복사본으로 채운 뒤 복사본을 지운다
+      rmSync(to, { recursive: true, force: true });
+      throw e3;
+    }
   }
 }
 
@@ -182,10 +211,15 @@ export async function applyPlanned(home: string, p: Planned, findingId: string, 
         await runClaude(["plugin", "enable", k]);
       } catch {}
     }
-    restore(home, m); // 반영 도중 실패하면 원래대로 돌리고 알린다
-    m.status = "failed";
+    let restored = true;
+    try {
+      restore(home, m); // 반영 도중 실패하면 원래대로 돌리고 알린다
+    } catch {
+      restored = false;
+    }
+    if (restored) m.status = "failed"; // 못 돌렸으면 applying 으로 남겨 앱 안에서 되돌릴 수 있게 한다
     writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2));
-    throw e;
+    throw new ApplyFailedError(e instanceof Error ? e.message : "", restored, dir);
   }
   for (const f of files) f.appliedHash = hashOrNull(absOf(home, f.rel));
   m.status = "applied";
@@ -235,6 +269,7 @@ export async function undo(home: string, id: string, runClaude?: Run): Promise<{
   } catch {
     return { ok: false, message: "그 백업을 찾을 수 없어요: " + id };
   }
+  if (m.status === "undone") return { ok: false, message: "이미 되돌렸어요" };
   if (m.status === "failed") return { ok: false, message: "적용에 실패해서 이미 원래대로 돌려 놓았어요. 되돌릴 것이 없어요" };
   const interrupted = m.status === "applying"; // 적용 도중 멈춘 기록은 해시 없이 되돌린다
   try {
@@ -262,6 +297,8 @@ export async function undo(home: string, id: string, runClaude?: Run): Promise<{
       await runClaude(["plugin", "enable", k]);
     } catch {}
   }
+  m.status = "undone";
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(m, null, 2));
   const note = m.cliKeys?.length && !runClaude ? " 플러그인은 claude plugin enable 로 다시 켜 주세요." : "";
   return { ok: true, message: "되돌렸어요. Claude Code 를 다시 시작하면 반영돼요." + note };
 }

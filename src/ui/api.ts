@@ -1,5 +1,5 @@
 // 서버 API 호출은 이 파일 한 곳에서만 한다. 규격은 src/shared/types.ts 아래쪽 주석.
-import type { ClaudeEnv, FixJob, FixRequest, Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
+import type { ClaudeEnv, FixBackup, FixJob, FixRequest, Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
 
 // 접근 확인은 서버가 준 쿠키로 하므로 화면은 키를 다루지 않는다.
 // 개발용 서버의 ?mock= 같은 화면 주소의 쿼리는 그대로 API 요청에 붙인다.
@@ -174,6 +174,10 @@ export async function applyFix(jobId: string, archive?: string[]): Promise<FixJo
 
 export async function undoFix(backupId: string): Promise<{ ok: boolean; message: string }> {
   return fixJson(await postJson("/api/fix/undo", { backupId }), "되돌리지 못했어요.");
+}
+
+export async function getFixBackups(): Promise<FixBackup[]> {
+  return fixJson<FixBackup[]>(await fetch(withQuery("/api/fix/backups")), "최근 고친 것을 가져오지 못했어요.");
 }
 
 /** Claude 고치기 안내에 동의했다고 저장한다 */

@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import * as fs from "node:fs";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyPlanned, listBackups, undo } from "../src/fix/backup";
+import { ApplyFailedError, applyPlanned, hashPath, listBackups, undo } from "../src/fix/backup";
 import { planMoveOff, planPluginsOff } from "../src/fix/mechanical";
 import { backupsDir, offDir } from "../src/fix/paths";
 import { buildFixtureHome } from "./fixtures/build";
@@ -169,5 +170,70 @@ describe("링크와 임시 파일", () => {
   test("임시 파일을 .claude 안에 만들지 않는다", async () => {
     await applyPlanned(home, planPluginsOff(home, [KEY]), "x");
     expect(readdirSync(join(home, ".claude")).some((n) => n.includes("checkup-tmp"))).toBe(false);
+  });
+});
+
+describe("이동 실패 안전", () => {
+  test("EXDEV 가 아닌 rename 실패는 복사하지 않고 원본이 그대로이며 안내가 정직하다", async () => {
+    const skill = join(home, ".claude", "skills", "unused-one");
+    const before = hashPath(skill);
+    const spy = spyOn(fs, "renameSync").mockImplementation(() => {
+      throw Object.assign(new Error("busy"), { code: "EPERM" });
+    });
+    let err: unknown;
+    try {
+      await applyPlanned(home, planMoveOff(home, [skill]), "x");
+    } catch (e) {
+      err = e;
+    } finally {
+      spy.mockRestore();
+    }
+    expect(err).toBeInstanceOf(ApplyFailedError);
+    expect((err as ApplyFailedError).restored).toBe(true);
+    expect((err as Error).message).toContain("원래대로예요");
+    expect(hashPath(skill)).toBe(before);
+    expect(existsSync(join(offDir(home), "skills", "unused-one"))).toBe(false);
+  });
+
+  test("되돌리지 못했으면 원래대로라고 말하지 않고 백업 위치를 알린다", () => {
+    const e = new ApplyFailedError("busy", false, "/b/dir");
+    expect(e.message).not.toContain("원래대로예요");
+    expect(e.message).toContain("/b/dir");
+  });
+
+  test("되돌린 백업은 undone 으로 남고 다시 되돌릴 수 없다", async () => {
+    const m = await applyPlanned(home, planPluginsOff(home, [KEY]), "x");
+    expect((await undo(home, m.id)).ok).toBe(true);
+    expect(listBackups(home).find((b) => b.id === m.id)?.status).toBe("undone");
+    const again = await undo(home, m.id);
+    expect(again.ok).toBe(false);
+    expect(again.message).toContain("이미 되돌렸어요");
+  });
+
+  test("폴더 안 링크된 폴더가 있어도 해시가 터지지 않는다", () => {
+    const skill = join(home, ".claude", "skills", "unused-one");
+    const target = join(dir, "elsewhere");
+    mkdirSync(target);
+    try {
+      symlinkSync(target, join(skill, "linked"), "junction");
+    } catch {
+      return;
+    }
+    expect(() => hashPath(skill)).not.toThrow();
+  });
+});
+
+describe("비밀값 모양", () => {
+  test("개인키 블록, 슬랙 웹훅, live 키, AIza, glpat 은 가려진다", async () => {
+    const { redactSecrets } = await import("../src/scan/fsutil");
+    for (const v of [
+      "-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----",
+      "-----BEGIN OPENSSH PRIVATE KEY-----",
+      "https://hooks.slack.com/services/T000/B000/abcdef123",
+      "sk_live_abcdefgh12345678",
+      "AIzaSyA1234567890abcdefghijklmn",
+      "glpat-abcdefghij1234567890",
+    ]) expect(redactSecrets(`x ${v} y`)).not.toContain(v.slice(0, 20));
+    expect(redactSecrets("평범한 글")).toBe("평범한 글");
   });
 });
