@@ -147,6 +147,35 @@ describe("기계적 고치기", () => {
     expect((await post("/api/fix/preview", { findingId: (await findingOf("duplicate-name")).id })).status).toBe(400);
   });
 
+  test("같은 settings.json 을 바꾸는 적용 두 개를 동시에 보내면 하나만 되고 하나는 409", async () => {
+    process.env.CHECKUP_FAKE_PLUGIN_SLEEP_MS = "800"; // 해시 검사와 쓰기 사이가 길다
+    try {
+      const a = await preview({ findingId: (await findingOf("unused-plugin")).id });
+      const b = await preview({ findingId: (await findingOf("unused-items", (f) => f.items.some((id) => id.startsWith("skill:plugin:"))) ).id });
+      const rs = await Promise.all([post("/api/fix/apply", { jobId: a.id }), post("/api/fix/apply", { jobId: b.id })]);
+      expect(rs.map((r) => r.status).sort()).toEqual([200, 409]);
+      const bad = rs.find((r) => r.status === 409)!;
+      expect(((await bad.json()) as { error: string }).error).toContain("그사이 바뀌었어요");
+    } finally {
+      delete process.env.CHECKUP_FAKE_PLUGIN_SLEEP_MS;
+    }
+  });
+
+  test("같은 진단의 claude 미리 보기를 두 번 보내면 같은 작업을 돌려준다", async () => {
+    await agree();
+    setPlan({ edits: [], sleepMs: 800 });
+    const f = await findingOf("memory-index-near-limit");
+    const j1 = (await (await post("/api/fix/preview", { findingId: f.id })).json()) as FixJob;
+    const j2 = (await (await post("/api/fix/preview", { findingId: f.id })).json()) as FixJob;
+    expect(j2.id).toBe(j1.id);
+    await waitJob(j1.id);
+  });
+
+  test("백업 id 에 .. 는 받지 않는다", async () => {
+    const ur = (await (await post("/api/fix/undo", { backupId: ".." })).json()) as { ok: boolean };
+    expect(ur.ok).toBe(false);
+  });
+
   test("미리 보기 뒤 원본이 바뀌면 적용은 409 와 다시 만들라는 말", async () => {
     const job = await preview({ findingId: (await findingOf("unused-plugin")).id });
     writeFileSync(settingsPath(), readFileSync(settingsPath(), "utf8") + "\n");

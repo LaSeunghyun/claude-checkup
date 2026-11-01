@@ -227,7 +227,7 @@ export function listBackups(home: string): Manifest[] {
 }
 
 export async function undo(home: string, id: string, runClaude?: Run): Promise<{ ok: boolean; message: string }> {
-  if (!/^[\w.-]+$/.test(id)) return { ok: false, message: "그 백업을 찾을 수 없어요" };
+  if (!/^[\w-]+$/.test(id)) return { ok: false, message: "그 백업을 찾을 수 없어요" };
   const dir = join(backupsDir(home), id);
   let m: Manifest;
   try {

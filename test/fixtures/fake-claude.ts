@@ -10,7 +10,10 @@ if (argv[0] === "--version") {
   process.exit(0);
 }
 // claude plugin disable/enable: CHECKUP_FAKE_PLUGIN_EXIT 종료 코드만 돌려준다 (기본 1 = 설정 파일로 대신하게)
-if (argv[0] === "plugin") process.exit(Number(process.env.CHECKUP_FAKE_PLUGIN_EXIT ?? 1));
+if (argv[0] === "plugin") {
+  if (process.env.CHECKUP_FAKE_PLUGIN_SLEEP_MS) await new Promise((r) => setTimeout(r, Number(process.env.CHECKUP_FAKE_PLUGIN_SLEEP_MS)));
+  process.exit(Number(process.env.CHECKUP_FAKE_PLUGIN_EXIT ?? 1));
+}
 const plan = JSON.parse(readFileSync(process.env.CHECKUP_FAKE_PLAN!, "utf8"));
 if (plan.flood) process.stdout.write("x".repeat(plan.flood)); // 표준 입력을 읽기 전에 많이 쓰는 자식
 const stdin = plan.ignoreStdin ? "" : await Bun.stdin.text();

@@ -194,10 +194,22 @@ export function startServer(opts: ServerOpts): Running {
     if (ev) sendTelemetry(ev);
   }
 
+  // 끝난 작업만 오래된 것부터 버린다. 돌고 있는 작업은 남긴다
   function remember(st: JobState) {
     jobs.set(st.job.id, st);
-    while (jobs.size > MAX_JOBS) jobs.delete(jobs.keys().next().value!);
+    for (const [id, x] of jobs) {
+      if (jobs.size <= MAX_JOBS) break;
+      if (x.job.status !== "running") jobs.delete(id);
+    }
   }
+
+  // 적용과 되돌리기는 한 번에 하나씩. 앞 작업의 쓰기가 끝난 뒤 다음 작업이 해시를 검사해야 서로 덮어쓰지 않는다
+  let fixLock: Promise<unknown> = Promise.resolve();
+  const serial = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const p = fixLock.then(fn, fn);
+    fixLock = p.catch(() => {});
+    return p;
+  };
 
   // 화면(HTML 번들)은 Bun 이 직접 내보내는 응답이라 헤더를 못 붙인다. 안쪽 서버에 두고 여기서 받아 보안 헤더를 붙여 내보낸다
   let uiServer: ReturnType<typeof Bun.serve> | null = null;
@@ -368,6 +380,10 @@ export function startServer(opts: ServerOpts): Running {
             throw e;
           }
           // 경로는 받지 않는다. 진단 id 와 그 진단 안의 항목 id 만 남긴다
+          // 같은 진단의 claude 실행이 이미 돌고 있으면 그 작업을 돌려준다 (사용량을 두 번 쓰지 않게)
+          if (target.kind === "claude") {
+            for (const x of jobs.values()) if (x.job.kind === "claude" && x.job.status === "running" && x.job.request.findingId === target.finding.id) return json(x.job);
+          }
           const request: FixRequest = { findingId: target.finding.id, ...(Array.isArray(body.itemIds) ? { itemIds: target.entries.map((e) => e.item.id) } : {}) };
           let env: ClaudeEnv = { available: false };
           let estimate: FixJob["estimate"];
@@ -428,21 +444,24 @@ export function startServer(opts: ServerOpts): Running {
           if (st.built.preview.blocked) return json({ error: st.built.preview.blocked }, 409);
           if (st.applying) return json({ error: "이미 적용하고 있어요." }, 409); // 두 번 눌러도 한 번만
           st.applying = true;
-          const before = snapshot?.summary;
-          let manifest;
-          try {
-            manifest = await applyPlanned(home, withArchive(home, st.built, body.archive), st.job.request.findingId, runClaude);
-          } catch (e) {
-            if (e instanceof ChangedSinceError) return json({ error: e.message }, 409);
-            return json({ error: say(`적용하지 못했어요. 파일은 원래대로예요. ${e instanceof Error ? e.message : ""}`.trim()) }, 400);
-          } finally {
-            st.applying = false;
-          }
-          st.job = { ...st.job, status: "applied", backupId: manifest.id };
-          trackFix("fix_apply");
-          await rescanAfterChange();
-          if (before && snapshot) st.job = { ...st.job, result: { before, after: snapshot.summary } };
-          return json(st.job);
+          const built = st.built;
+          return serial(async () => {
+            const before = snapshot?.summary;
+            let manifest;
+            try {
+              manifest = await applyPlanned(home, withArchive(home, built, body.archive), st.job.request.findingId, runClaude);
+            } catch (e) {
+              if (e instanceof ChangedSinceError) return json({ error: e.message }, 409);
+              return json({ error: say(`적용하지 못했어요. 파일은 원래대로예요. ${e instanceof Error ? e.message : ""}`.trim()) }, 400);
+            } finally {
+              st.applying = false;
+            }
+            st.job = { ...st.job, status: "applied", backupId: manifest.id };
+            trackFix("fix_apply");
+            await rescanAfterChange();
+            if (before && snapshot) st.job = { ...st.job, result: { before, after: snapshot.summary } };
+            return json(st.job);
+          });
         }),
       },
       "/api/fix/undo": {
@@ -454,13 +473,16 @@ export function startServer(opts: ServerOpts): Running {
             return json({ error: "JSON 이 아니에요." }, 400);
           }
           if (typeof body.backupId !== "string" || !body.backupId) return json({ error: "되돌릴 백업을 알려 주세요." }, 400);
-          const r = await undo(home, body.backupId, runClaude);
-          if (r.ok) {
-            for (const st of jobs.values()) if (st.job.backupId === body.backupId) st.job = { ...st.job, status: "undone", message: say(r.message) };
-            trackFix("fix_undo");
-            await rescanAfterChange();
-          }
-          return json({ ok: r.ok, message: say(r.message) });
+          const id = body.backupId;
+          return serial(async () => {
+            const r = await undo(home, id, runClaude);
+            if (r.ok) {
+              for (const st of jobs.values()) if (st.job.backupId === id) st.job = { ...st.job, status: "undone", message: say(r.message) };
+              trackFix("fix_undo");
+              await rescanAfterChange();
+            }
+            return json({ ok: r.ok, message: say(r.message) });
+          });
         }),
       },
       // 백업 요약 목록 (최근 것부터). 경로는 .claude 기준 상대 경로만
