@@ -1,0 +1,171 @@
+/**
+ * Hearth DS base - reset, 포커스 링, 최소 컴포넌트.
+ * 폰트: Pretendard (SIL Open Font License 1.1, 공개 배포)
+ * 출처: https://github.com/orioncactus/pretendard (v1.3.9, jsDelivr CDN)
+ * 값은 전부 tokens.css 토큰이다. 색·간격·크기를 여기서 직접 쓰지 않는다.
+ */
+@import url("./tokens.css");
+/* claude-checkup: CDN 대신 fonts/PretendardVariable.woff2 를 번들한다(외부 요청 0). 라이선스 fonts/OFL-Pretendard.txt */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("./fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-text-default);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+img, svg, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--color-brand-text); }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* 버튼: 채움으로만 구분한다. 보더 없음 */
+.btn {
+  text-decoration: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: var(--font-size-body-small);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease);
+}
+.btn svg { flex: none; }
+.btn-primary { background: var(--color-brand); color: var(--color-text-inverse); }
+.btn-primary:hover { background: var(--color-brand-hover); }
+.btn-secondary { background: var(--color-canvas); color: var(--color-text-strong); }
+.btn-secondary:hover { background: var(--color-border); }
+.btn-ghost { color: var(--color-brand-text); }
+.btn-ghost:hover { background: var(--color-brand-tint); }
+/* 데스크톱 밀집용: 시각 36px, 히트 영역은 ::after 로 44px 유지 */
+.btn-sm { min-height: var(--control-height-sm); padding: 0 var(--space-3); }
+.btn-sm::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--control-height-sm) - var(--control-height)) / 2) 0;
+}
+.btn:disabled, .btn[aria-disabled="true"] {
+  background: var(--color-canvas);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+/* 회색 면 위에서는 보조 버튼을 흰색으로 올린다 */
+.card .btn-secondary, .card .btn:disabled { background: var(--color-surface); }
+.card .btn-secondary:hover { background: var(--color-brand-tint); }
+
+/* 카드 = 회색 면 패널. 테두리·그림자 없음. 안에 흰 .card-inner 를 올린다. 강조 패널은 .is-tint(화면당 1개) */
+.card {
+  background: var(--color-canvas);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  min-width: 0;
+}
+.card.is-tint { background: var(--color-brand-tint); }
+.card-inner {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  min-width: 0;
+}
+
+/* 입력: 폼 컨트롤은 보더를 유지한다(WCAG 1.4.11, 3:1 이상) */
+.input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
+  color: var(--color-text-strong);
+  transition: border-color var(--motion-fast) var(--ease);
+}
+.input::placeholder { color: var(--color-text-hint); }
+.input:hover { border-color: var(--color-text-subtle); }
+.input:focus-visible { border-color: var(--color-brand); }
+.input[aria-invalid="true"] { border-color: var(--color-danger); }
+.input:disabled { background: var(--color-canvas); color: var(--color-text-disabled); cursor: not-allowed; }
+
+/* 배지 = 알약 칩. 회색 면 위에서는 흰 칩 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-canvas);
+  color: var(--color-text-default);
+  font-size: var(--font-size-body-small);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.card .badge:not([class*="badge-"]) { background: var(--color-surface); }
+.badge-brand { background: var(--color-brand-tint); color: var(--color-brand-text); }
+.badge-success { background: var(--color-success-tint); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-tint); color: var(--color-warning); }
+.badge-danger { background: var(--color-danger-tint); color: var(--color-danger); }
+.badge-info { background: var(--color-info-tint); color: var(--color-info); }
+
+/* 리스트: 행마다 회색 면 알약 패널, 사이는 간격. 구분선 없음. 오른쪽 .list-row-chevron 자리에 chevron-right 아이콘 */
+.list { display: grid; gap: var(--space-2); }
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: calc(var(--control-height) + var(--space-3));
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-canvas);
+}
+a.list-row:hover, button.list-row:hover { background: var(--color-border); }
+.list-row[aria-selected="true"], .list-row[aria-current="page"] { background: var(--color-brand-tint); }
+.list-row-main { flex: 1; min-width: 0; }
+.list-row-title { color: var(--color-text-strong); font-weight: 600; }
+.list-row-meta { color: var(--color-text-subtle); font-size: var(--font-size-body-small); }
+.list-row-chevron { flex: none; display: inline-flex; color: var(--color-text-hint); }
+/* 회색 패널 안의 리스트는 행이 흰색 */
+.card .list-row { background: var(--color-surface); }
+.card a.list-row:hover, .card button.list-row:hover { background: var(--color-brand-tint); }
+.card .list-row[aria-selected="true"], .card .list-row[aria-current="page"] { background: var(--color-brand-tint); }
+
+/* 제목은 줄 길이를 고르게 나눠 한 어절만 떨어지는 줄을 막는다 */
+h1, h2, h3 { text-wrap: balance; }

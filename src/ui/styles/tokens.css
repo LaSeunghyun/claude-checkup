@@ -1,0 +1,181 @@
+/**
+ * Hearth DS 토큰 - 값의 정본은 이 파일 하나다.
+ * rules.md·digest.md는 역할만 적고 값을 다시 싣지 않는다.
+ * 성격: 도구형. 흰 바탕 + 쿨 그레이 면 + 블루 포인트 1색, 둥근 모서리. (2026-10-30 웜 톤에서 전환)
+ * 대비 실측(WCAG, 2026-10-30 블루 전환 후 재계산): 아래 각 줄 주석의 수치는 --color-surface 기준.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* 텍스트 - 쿨 그레이 5단계 + 반전. 순수 #000 금지 */
+  --color-text-strong: #191f28; /* 제목·핵심 숫자 16.6:1 */
+  --color-text-default: #333d4b; /* 본문 11.0:1 */
+  --color-text-subtle: #4e5968; /* 설명·부제 7.1:1 */
+  --color-text-hint: #646d7a; /* 메타·placeholder 5.2:1 (surface), canvas 4.8:1, brand-tint 4.7:1 */
+  --color-text-disabled: #b0b8c1; /* 비활성 전용, 정보 전달 금지 */
+  --color-text-inverse: #ffffff; /* brand·강조 채움 위 */
+
+  /* 표면 - 3층(뒤 → 앞) */
+  --color-canvas: #f2f4f6; /* 회색 면 패널·칩·보조 버튼 */
+  --color-bg: #f9fafb; /* 패널 위 hover 보조면 */
+  --color-surface: #ffffff; /* 페이지 바탕·패널 안 card-inner·입력·시트 */
+  --color-border: #e5e8eb; /* 회색 면 hover·표 구분선 */
+  --color-border-strong: #d1d6db; /* 표 구분선·스켈레톤 */
+  --color-border-control: #7d8693; /* 입력·체크박스 테두리, surface 3.7:1 / canvas 3.3:1 / brand-tint 3.3:1 (WCAG 1.4.11) */
+
+  /* 브랜드 - 블루. #3182f6 계열을 흰 글자 4.5:1 에 맞춰 한 단계 진하게. 텍스트로 쓸 땐 --color-brand-text */
+  --color-brand: #1f6fe8; /* 채움 버튼·포커스 링 (흰 글자 4.7:1) */
+  --color-brand-hover: #1b64da;
+  --color-brand-text: #1b64da; /* 링크·강조 글자 5.4:1 (canvas 위 4.9:1) */
+  --color-brand-tint: #e8f3ff; /* 선택 행·배지 배경 */
+
+  /* 상태 - 텍스트·아이콘 겸용 (surface 위 전부 4.5:1 이상) */
+  --color-danger: #d22030; /* surface 5.3:1 */
+  --color-success: #027a51; /* surface 5.4:1, success-tint 4.8:1 */
+  --color-warning: #a05500; /* surface 5.5:1, warning-tint 5.1:1 */
+  --color-info: #0f6e9e;
+  --color-danger-tint: #ffeeee;
+  --color-success-tint: #e6f6ef;
+  --color-warning-tint: #fff4e5;
+  --color-info-tint: #e7f4fa;
+
+  /* 타이포 - 공통 6단계. 홈페이지·제안서는 아래 매체 토큰을 추가로 쓴다. weight 400~700 */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, "Malgun Gothic", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --font-size-display: 32px;
+  --font-weight-display: 700;
+  --font-size-title: 22px;
+  --font-weight-title: 700;
+  --font-size-subtitle: 17px;
+  --font-weight-subtitle: 600;
+  --font-size-body: 16px;
+  --font-weight-body: 400;
+  --font-size-body-small: 15px; /* 설명·버튼·라벨 하한 15px */
+  --font-weight-body-small: 400;
+  --font-size-caption: 13px; /* 메타 전용, 핵심 정보 금지 */
+  --font-weight-caption: 500;
+  --line-height-tight: 1.3; /* display·title */
+  --line-height-body: 1.6;
+
+  /* 간격 - 4px 그리드 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* 모양 - 크게 둥글린다 */
+  --radius-sm: 8px; /* 배지·태그 */
+  --radius-md: 12px; /* 버튼·입력 */
+  --radius-lg: 16px; /* card-inner·리스트 행 */
+  --radius-xl: 24px; /* 회색 패널·시트·다이얼로그 */
+  --radius-pill: 999px;
+
+  /* 그림자 - 떠 있는 요소(다이얼로그·시트·팝오버) 전용 */
+  --shadow-float: 0 8px 24px rgba(25, 31, 40, 0.12), 0 2px 6px rgba(25, 31, 40, 0.06);
+  --dim: rgba(0, 0, 0, 0.45); /* 오버레이 */
+
+  /* 조작 */
+  --control-height: 44px; /* 버튼·입력 기본 높이 = 터치 하한 */
+  --control-height-sm: 36px; /* 데스크톱 밀집 UI 전용, 탭 영역은 44px 유지 */
+  --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-brand); /* 이중 링: 흰 간격 + brand 4px, surface 대비 4.7:1 */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 매체: 홈페이지 - 섹션 단위, 스캔 전제라 크고 성기게 */
+  --web-container: 1120px; /* 본문 최대 폭 */
+  --web-container-narrow: 720px; /* 글 읽는 폭 */
+  --web-gutter: 20px; /* 모바일 좌우 여백, 768px 이상은 32px */
+  --web-section-gap: 96px; /* 섹션 사이, 모바일 64px */
+  --font-size-hero: clamp(36px, 6vw, 60px);
+  --font-weight-hero: 700;
+  --font-size-section: clamp(26px, 3.6vw, 36px);
+  --font-weight-section: 700;
+  --font-size-lead: 19px; /* 히어로·섹션 아래 설명 */
+  --line-height-hero: 1.15;
+  /* 브레이크포인트(참고값, CSS 변수는 media query 에 못 쓴다): 640 / 768 / 1024 / 1280 */
+
+  /* 매체: 제안서 - 1920x1080 장표 기준 px. 화면 맞춤은 scale 로 */
+  --deck-width: 1920px;
+  --deck-height: 1080px;
+  --deck-pad-top: 120px; /* 장 안쪽 여백: 위 */
+  --deck-pad-x: 144px; /* 좌우 */
+  --deck-pad-bottom: 160px; /* 아래. 출처 줄은 이 여백 안에 놓는다 */
+  --deck-foot-bottom: 64px; /* 출처 줄 위치(장 아래 끝 기준) */
+  --deck-grid-gap: 48px;
+  --deck-title-tracking: -1.5px;
+  --font-size-deck-cover: 104px;
+  --font-size-deck-title: 60px; /* 장 제목, 큰 숫자 */
+  --font-size-deck-number: 120px; /* 핵심 숫자 */
+  --font-size-deck-subtitle: 34px; /* 항목 제목 */
+  --font-size-deck-body: 30px; /* 장표 본문 */
+  --font-size-deck-small: 26px; /* 작은 본문, 눈썹 라벨 */
+  --font-size-deck-caption: 24px; /* 출처·각주, 장표 글자 하한 */
+}
+
+/* 다크 - 같은 이름, 값만 쌍으로. 대비는 --color-surface 기준 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-text-strong: #f9fafb; /* 15.5:1 */
+    --color-text-default: #e5e8eb; /* 13.2:1 */
+    --color-text-subtle: #b0b8c1; /* 8.1:1 */
+    --color-text-hint: #959eaa; /* 6.0:1 */
+    --color-text-disabled: #4e5968;
+    --color-text-inverse: #101013;
+    --color-canvas: #101013;
+    --color-bg: #17171c;
+    --color-surface: #202027;
+    --color-border: #2c2c35;
+    --color-border-strong: #3c3c47;
+    --color-border-control: #7e7e8c; /* surface 대비 4.1:1 */
+    --color-brand: #4c9aff; /* 어두운 글자 6.7:1 */
+    --color-brand-hover: #6aaeff;
+    --color-brand-text: #6aaeff;
+    --color-brand-tint: #182a45;
+    --color-danger: #ff6b6b;
+    --color-success: #3dd598;
+    --color-warning: #f5a524;
+    --color-info: #5bc0eb;
+    --color-danger-tint: #3a1d20;
+    --color-success-tint: #123326;
+    --color-warning-tint: #3a2a10;
+    --color-info-tint: #13303d;
+    --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --dim: rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-text-strong: #f9fafb;
+  --color-text-default: #e5e8eb;
+  --color-text-subtle: #b0b8c1;
+  --color-text-hint: #959eaa;
+  --color-text-disabled: #4e5968;
+  --color-text-inverse: #101013;
+  --color-canvas: #101013;
+  --color-bg: #17171c;
+  --color-surface: #202027;
+  --color-border: #2c2c35;
+  --color-border-strong: #3c3c47;
+  --color-border-control: #7e7e8c;
+  --color-brand: #4c9aff;
+  --color-brand-hover: #6aaeff;
+  --color-brand-text: #6aaeff;
+  --color-brand-tint: #182a45;
+  --color-danger: #ff6b6b;
+  --color-success: #3dd598;
+  --color-warning: #f5a524;
+  --color-info: #5bc0eb;
+  --color-danger-tint: #3a1d20;
+  --color-success-tint: #123326;
+  --color-warning-tint: #3a2a10;
+  --color-info-tint: #13303d;
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --dim: rgba(0, 0, 0, 0.6);
+}

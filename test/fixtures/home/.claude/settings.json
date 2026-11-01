@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "plugin-a@mkt": true,
+    "plugin-unused@mkt": true,
+    "plugin-off@mkt": false
+  },
+  "hooks": {
+    "SessionStart": [ { "hooks": [ { "type": "command", "command": "bun run C:/fx/hooks/start-ok.mjs" } ] } ],
+    "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "bun run C:/fx/hooks/ok-hook.mjs" } ] } ],
+    "Stop": [ { "hooks": [ { "type": "command", "command": "bun run C:/fx/hooks/slow-hook.mjs" } ] } ],
+    "PreToolUse": [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "bun run C:/fx/hooks/failing-hook.mjs" } ] } ],
+    "PostToolUse": [ { "hooks": [ { "type": "command", "command": "bun run C:/fx/hooks/unrun-hook.mjs --api-key SHOULDNOTLEAK" } ] } ]
+  }
+}

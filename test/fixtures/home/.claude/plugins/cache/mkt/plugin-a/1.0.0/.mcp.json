@@ -1,0 +1,1 @@
+{ "mcpServers": { "psvc": { "command": "node", "args": ["server.js"], "env": { "PLUGIN_API_TOKEN": "ghp_FAKESECRETFAKESECRET1234" } } } }
