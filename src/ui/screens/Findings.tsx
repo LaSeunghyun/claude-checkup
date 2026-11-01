@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import type { Finding, Severity } from "../../shared/types";
+import { CATEGORIES, type Category, type Finding, type Severity } from "../../shared/types";
 import { FindingGroupCard } from "../components/FindingCard";
 import { Header } from "../components/Header";
 import { useUi } from "../context";
-import { SEVERITY_LABEL, SEVERITY_ORDER, num } from "../format";
+import { CATEGORY_LABEL, SEVERITY_LABEL, SEVERITY_ORDER, num } from "../format";
 import { Check, ChevronLeft } from "../icons";
 import type { SeverityFilter, Theme } from "../hooks";
 
@@ -31,12 +31,15 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
     return c;
   }, [all]);
   const shown = severity === "all" ? sorted : sorted.filter((f) => f.severity === severity);
-  // 규칙별로 묶는다. 묶음 순서는 가장 심각한 건, 그다음 건수
-  const groups = useMemo(() => {
-    const m = new Map<string, Finding[]>();
-    for (const f of shown) (m.get(f.rule) ?? m.set(f.rule, []).get(f.rule)!).push(f);
+  // 분류별(위험, 고장, 연결 누수, 낭비, 헷갈림)로 나누고, 그 안에서 규칙마다 카드 하나로 묶는다. 카드 순서는 가장 심각한 건, 그다음 건수
+  const sections = useMemo(() => {
     const worst = (fs: Finding[]) => Math.min(...fs.map((f) => SEVERITY_ORDER[f.severity]));
-    return [...m.values()].sort((a, b) => worst(a) - worst(b) || b.length - a.length);
+    return CATEGORIES.map((category) => {
+      const m = new Map<string, Finding[]>();
+      for (const f of shown) if (f.category === category) (m.get(f.rule) ?? m.set(f.rule, []).get(f.rule)!).push(f);
+      const groups = [...m.values()].sort((a, b) => worst(a) - worst(b) || b.length - a.length);
+      return { category: category as Category, groups, count: groups.reduce((n, g) => n + g.length, 0) };
+    }).filter((sec) => sec.groups.length > 0);
   }, [shown]);
   const ruleCount = useMemo(() => new Set(all.map((f) => f.rule)).size, [all]);
 
@@ -52,7 +55,7 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
           <div className="crumb">
             <button className="btn btn-secondary btn-sm" type="button" onClick={() => go({ name: "home" })}>
               <ChevronLeft size={20} />
-              전체 지도
+              검진 결과
             </button>
             <h1 className="here">
               진단 결과 {num(ruleCount)}가지 <span className="meta">문제 {num(all.length)}건</span>
@@ -89,10 +92,19 @@ export function Findings({ severity, theme, onToggleTheme, onSettings, onRescan 
           </div>
         </div>
       ) : (
-        <div className="findings">
-          {groups.map((fs) => (
-            <FindingGroupCard key={fs[0].rule} findings={fs} headingLevel={2} />
-          ))}
+        <div className="finding-sections">
+        {sections.map((sec) => (
+          <section key={sec.category} aria-label={CATEGORY_LABEL[sec.category]}>
+            <h2 className="section-title">
+              {CATEGORY_LABEL[sec.category]} <span className="meta">{num(sec.count)}건</span>
+            </h2>
+            <div className="findings">
+              {sec.groups.map((fs) => (
+                <FindingGroupCard key={fs[0].rule} findings={fs} headingLevel={3} />
+              ))}
+            </div>
+          </section>
+        ))}
         </div>
       )}
     </>

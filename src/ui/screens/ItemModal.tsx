@@ -6,6 +6,7 @@ import { CloseButton, Modal } from "../components/Modal";
 import { useUi } from "../context";
 import { HOOK_EVENT, KIND_LABEL, KIND_ORIGIN, a4, dateText, num, seconds, sourceText } from "../format";
 import { ChevronLeft } from "../icons";
+import { pathTo, type PathStep } from "../linkmap";
 import { usageOf } from "../model";
 
 type Tab = "summary" | "links" | "body" | "usage";
@@ -33,7 +34,11 @@ export function ItemModal({ id, canBack, onBack, onClose }: Props) {
 
   const outLinks = item.links.out.filter((x) => model.byId.has(x));
   const inLinks = item.links.in.filter((x) => model.byId.has(x));
-  const linkCount = outLinks.length + inLinks.length;
+  // md 파일은 연결 그래프의 길도 센다 (목차, 링크, 언급)
+  const isMd = MD_KINDS.includes(item.kind);
+  const graphIn = isMd ? model.snap.graph.edges.filter((e) => e.to === id && model.byId.has(e.from)) : [];
+  const graphOut = isMd ? model.snap.graph.edges.filter((e) => e.from === id && model.byId.has(e.to)) : [];
+  const linkCount = new Set([...outLinks, ...inLinks, ...graphIn.map((e) => e.from), ...graphOut.map((e) => e.to)]).size;
   const tabs: { key: Tab; label: string }[] = [
     { key: "summary", label: "요약" },
     { key: "links", label: linkCount > 0 ? `연결 ${linkCount}` : "연결" },
@@ -84,7 +89,7 @@ export function ItemModal({ id, canBack, onBack, onClose }: Props) {
 
       <div id={`${titleId}-panel`} role="tabpanel" aria-labelledby={`${titleId}-tab-${tab}`} className="dlg-panel">
         {tab === "summary" && <SummaryPanel item={item} />}
-        {tab === "links" && <LinksPanel outIds={outLinks} inIds={inLinks} />}
+        {tab === "links" && <LinksPanel item={item} outIds={outLinks} inIds={inLinks} />}
         {tab === "body" && <BodyPanel item={item} />}
         {tab === "usage" && <UsagePanel item={item} />}
       </div>
@@ -192,20 +197,118 @@ function SummaryPanel({ item }: { item: Item }) {
 // ---- 연결 ----
 
 const READ_KINDS: Item["kind"][] = ["memory", "memory-index", "instruction"];
+const MD_KINDS = READ_KINDS;
 
-function LinksPanel({ outIds, inIds }: { outIds: string[]; inIds: string[] }) {
+// 길 종류 이름: 들어오는 길, 나가는 길을 묶는 순서이기도 하다
+const EDGE_KINDS = ["index", "link", "import", "mention"] as const;
+const EDGE_IN: Record<(typeof EDGE_KINDS)[number], string> = {
+  index: "목차에서",
+  link: "다른 파일의 링크로",
+  import: "불러오기(@경로)로",
+  mention: "이름이 언급돼서",
+};
+const EDGE_OUT: Record<(typeof EDGE_KINDS)[number], string> = {
+  index: "목차에 적은 파일",
+  link: "링크로 가리키는 파일",
+  import: "불러오는 파일(@경로)",
+  mention: "이름을 언급한 파일",
+};
+const STEP_VIA: Record<PathStep["via"] & string, string> = { index: "목차에서", link: "링크로", import: "불러와서", mention: "이름 언급으로" };
+
+function LinksPanel({ item, outIds, inIds }: { item: Item; outIds: string[]; inIds: string[] }) {
   const { model } = useUi();
-  const reads = outIds.filter((x) => READ_KINDS.includes(model.byId.get(x)!.kind));
-  const calls = outIds.filter((x) => !READ_KINDS.includes(model.byId.get(x)!.kind));
-  if (outIds.length + inIds.length === 0) {
+  const isMd = MD_KINDS.includes(item.kind);
+  const { graph } = model.snap;
+  const node = isMd ? graph.nodes.find((n) => n.id === item.id) : undefined;
+  const gIn = isMd ? graph.edges.filter((e) => e.to === item.id && model.byId.has(e.from)) : [];
+  const gOut = isMd ? graph.edges.filter((e) => e.from === item.id && model.byId.has(e.to)) : [];
+  const route = isMd && node && node.depth !== null && node.depth > 0 ? pathTo(graph, item.id).filter((s) => model.byId.has(s.id)) : [];
+
+  // 그래프가 이미 보여 준 길은 아래 일반 목록에서 뺀다
+  const shownIn = new Set(gIn.map((e) => e.from));
+  const shownOut = new Set(gOut.map((e) => e.to));
+  const reads = outIds.filter((x) => !shownOut.has(x) && READ_KINDS.includes(model.byId.get(x)!.kind));
+  const calls = outIds.filter((x) => !shownOut.has(x) && !READ_KINDS.includes(model.byId.get(x)!.kind));
+  const callers = inIds.filter((x) => !shownIn.has(x));
+  const rest = calls.length + reads.length + callers.length;
+
+  if (outIds.length + inIds.length + gIn.length + gOut.length === 0 && !node) {
     return <p className="node-meta">연결된 항목이 없어요. 다른 항목과 이어지지 않고 혼자 쓰이는 항목이에요.</p>;
   }
   return (
     <>
-      <LinkSection title="이 항목이 부르는 것" ids={calls} />
-      <LinkSection title="이 항목이 읽는 것" ids={reads} />
-      <LinkSection title="이 항목을 부르는 곳" ids={inIds} />
+      {node && (
+        <div>
+          <div className="sec-title">AI가 이 파일을 찾아가는 길</div>
+          {node.depth === null ? (
+            <p className="node-meta">길이 없어요. 어떤 출발점(CLAUDE.md, MEMORY.md)에서도 이어지지 않아서 AI가 이 파일이 있는 줄 몰라요.</p>
+          ) : node.depth === 0 ? (
+            <p className="node-meta">출발점이에요. 대화를 시작할 때마다 AI가 가장 먼저 읽어요.</p>
+          ) : (
+            <>
+              <p className="node-meta">출발점에서 {node.depth}단계 떨어져 있어요.</p>
+              {route.length > 1 && (
+                <div className="route" role="group" aria-label="출발점에서 이 파일까지 가는 길">
+                  {route.map((s, i) => (
+                    <span key={s.id} className="route-step">
+                      {s.via && <span>{STEP_VIA[s.via]}</span>}
+                      {s.id === item.id ? (
+                        <span className="badge badge-brand">{model.byId.get(s.id)!.name}</span>
+                      ) : (
+                        <ItemChips ids={[s.id]} label={`${i + 1}번째 파일`} />
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {node && <EdgeSection title="들어오는 길" edges={gIn} pick="from" labels={EDGE_IN} />}
+      {node && <EdgeSection title="나가는 길" edges={gOut} pick="to" labels={EDGE_OUT} />}
+      {node && gIn.length + gOut.length === 0 && <p className="node-meta">이 파일에 들어오거나 나가는 길이 없어요.</p>}
+      {rest > 0 && (
+        <>
+          <LinkSection title="이 항목이 부르는 것" ids={calls} />
+          <LinkSection title="이 항목이 읽는 것" ids={reads} />
+          <LinkSection title="이 항목을 부르는 곳" ids={callers} />
+        </>
+      )}
     </>
+  );
+}
+
+function EdgeSection({
+  title,
+  edges,
+  pick,
+  labels,
+}: {
+  title: string;
+  edges: { from: string; to: string; kind: (typeof EDGE_KINDS)[number] }[];
+  pick: "from" | "to";
+  labels: Record<(typeof EDGE_KINDS)[number], string>;
+}) {
+  if (edges.length === 0) return null;
+  return (
+    <div>
+      <div className="sec-title">
+        {title} {edges.length}
+      </div>
+      {EDGE_KINDS.map((k) => {
+        const ids = edges.filter((e) => e.kind === k).map((e) => e[pick]);
+        if (ids.length === 0) return null;
+        return (
+          <div key={k} className="edge-group">
+            <p className="meta">
+              {labels[k]} {ids.length}
+            </p>
+            <ItemChips ids={ids} label={`${title}, ${labels[k]}`} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

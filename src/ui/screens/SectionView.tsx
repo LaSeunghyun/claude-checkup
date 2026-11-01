@@ -71,9 +71,9 @@ export function SectionView({ sectionKey, mode, theme, onToggleTheme, onSettings
         withSearch
         left={
           <div className="crumb">
-            <button className="btn btn-secondary btn-sm" type="button" onClick={() => go({ name: "home" })}>
+            <button className="btn btn-secondary btn-sm" type="button" onClick={() => go({ name: "usage" })}>
               <ChevronLeft size={20} />
-              전체 지도
+              사용 현황
             </button>
             <h1 className="here">
               {def.noun} {num(all)}개

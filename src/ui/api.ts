@@ -1,5 +1,5 @@
 // 서버 API 호출은 이 파일 한 곳에서만 한다. 규격은 src/shared/types.ts 아래쪽 주석.
-import type { Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
+import type { ClaudeEnv, FixJob, FixRequest, Progress, Settings, Snapshot, TelemetryEvent } from "../shared/types";
 
 // 접근 확인은 서버가 준 쿠키로 하므로 화면은 키를 다루지 않는다.
 // 개발용 서버의 ?mock= 같은 화면 주소의 쿼리는 그대로 API 요청에 붙인다.
@@ -119,4 +119,64 @@ export function postViewOpen(view: NonNullable<TelemetryEvent["view"]>): void {
     body: JSON.stringify({ event: "view_open", view }),
     keepalive: true,
   }).catch(() => {});
+}
+
+// ---- 고치기 ----
+
+/** 고치기 요청이 거절된 경우. needConsent 는 안내 동의가 먼저, fallback 은 claude 를 못 써서 복사로 대신해야 한다는 뜻 */
+export class FixApiError extends ApiError {
+  needConsent: boolean;
+  fallback: boolean;
+  constructor(message: string, needConsent = false, fallback = false) {
+    super(message);
+    this.needConsent = needConsent;
+    this.fallback = fallback;
+  }
+}
+
+async function fixJson<T>(res: Response, fallback: string): Promise<T> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: unknown; needConsent?: unknown; fallback?: unknown } | null;
+    throw new FixApiError(
+      typeof body?.error === "string" ? body.error : fallback,
+      body?.needConsent === true,
+      body?.fallback === "copy",
+    );
+  }
+  return (await res.json()) as T;
+}
+
+const postJson = (path: string, body: unknown) =>
+  fetch(withQuery(path), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+/** claude 를 쓸 수 있는지. 확인 자체가 실패하면 못 쓰는 것으로 본다 */
+export async function getFixEnv(): Promise<ClaudeEnv> {
+  try {
+    const res = await fetch(withQuery("/api/fix/env"));
+    if (!res.ok) return { available: false };
+    return (await res.json()) as ClaudeEnv;
+  } catch {
+    return { available: false };
+  }
+}
+
+export async function startFixPreview(req: FixRequest): Promise<FixJob> {
+  return fixJson<FixJob>(await postJson("/api/fix/preview", req), "미리 보기를 만들지 못했어요.");
+}
+
+export async function getFixJob(id: string): Promise<FixJob> {
+  return fixJson<FixJob>(await fetch(withQuery("/api/fix/job", { id })), "진행 상황을 가져오지 못했어요.");
+}
+
+export async function applyFix(jobId: string, archive?: string[]): Promise<FixJob> {
+  return fixJson<FixJob>(await postJson("/api/fix/apply", archive ? { jobId, archive } : { jobId }), "적용하지 못했어요.");
+}
+
+export async function undoFix(backupId: string): Promise<{ ok: boolean; message: string }> {
+  return fixJson(await postJson("/api/fix/undo", { backupId }), "되돌리지 못했어요.");
+}
+
+/** Claude 고치기 안내에 동의했다고 저장한다 */
+export async function agreeClaudeFix(): Promise<Settings> {
+  return fixJson<Settings>(await postJson("/api/settings", { claudeFix: "agreed" }), "동의를 저장하지 못했어요.");
 }

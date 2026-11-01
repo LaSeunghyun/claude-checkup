@@ -5,17 +5,18 @@ import { useUi } from "../context";
 import { SEVERITY_BADGE, SEVERITY_LABEL, a4, dateTimeText, num, percent, periodText } from "../format";
 import type { Theme } from "../hooks";
 import { buildMap, type MapAction, type MapNode } from "../map";
+import { ChevronLeft } from "../icons";
 import { idleTotal } from "../model";
 
-interface HomeProps {
+interface UsageProps {
   theme: Theme;
   onToggleTheme: () => void;
   onSettings: () => void;
   onRescan: () => void;
 }
 
-export function Home({ theme, onToggleTheme, onSettings, onRescan }: HomeProps) {
-  const { model } = useUi();
+export function Usage({ theme, onToggleTheme, onSettings, onRescan }: UsageProps) {
+  const { model, go } = useUi();
   const { snap } = model;
   return (
     <>
@@ -27,7 +28,13 @@ export function Home({ theme, onToggleTheme, onSettings, onRescan }: HomeProps) 
         withSearch
         left={
           <>
-            <h1 className="top-title">내 Claude 설정 한눈에 보기</h1>
+            <div className="crumb">
+              <button className="btn btn-secondary btn-sm" type="button" onClick={() => go({ name: "home" })}>
+                <ChevronLeft size={20} />
+                검진 결과
+              </button>
+              <h1 className="here">사용 현황</h1>
+            </div>
             <p className="top-desc">.claude 폴더에 넣어 둔 지시문, 메모리, 작업 설명서, 에이전트가 실제로 얼마나 쓰이는지 보여 줘요.</p>
             <p className="meta">
               최근 30일 기록 기준 · {periodText(snap.window)} · 점검 {dateTimeText(snap.generatedAt)}
@@ -42,7 +49,7 @@ export function Home({ theme, onToggleTheme, onSettings, onRescan }: HomeProps) 
   );
 }
 
-function Warnings({ lines }: { lines: string[] }) {
+export function Warnings({ lines }: { lines: string[] }) {
   return (
     <section className="notice" aria-label="읽지 못한 곳">
       <span className="badge badge-warning notice-badge">알아 두면 좋아요</span>

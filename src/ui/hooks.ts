@@ -1,7 +1,7 @@
 // 화면 상태 훅: 점검 결과 불러오기, 주소(#) 기반 화면 전환, 테마.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Progress, Severity, Snapshot } from "../shared/types";
-import { errorText, getProgress, getSnapshot, rescan as apiRescan } from "./api";
+import type { ClaudeEnv, Progress, Severity, Snapshot } from "../shared/types";
+import { errorText, getFixEnv, getProgress, getSnapshot, rescan as apiRescan } from "./api";
 import { isSectionKey, type SectionKey, type ViewMode } from "./model";
 
 // ---- 점검 결과 ----
@@ -14,7 +14,7 @@ export type SnapState =
 
 const POLL_MS = 700;
 
-export function useSnapshot(): { state: SnapState; rescan: () => void } {
+export function useSnapshot(): { state: SnapState; rescan: () => void; refresh: () => void } {
   const [state, setState] = useState<SnapState>({ status: "loading" });
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const gen = useRef(0); // 오래된 응답이 새 상태를 덮어쓰지 않게 하는 번호
@@ -86,7 +86,31 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
     };
   }, [load]);
 
-  return { state, rescan: () => void rescan() };
+  // 열린 창을 닫지 않고 결과만 조용히 새로 읽는다 (고치기 뒤). 점검 중이거나 실패하면 지금 화면을 그대로 둔다
+  const refresh = useCallback(async () => {
+    const r = await getSnapshot();
+    if (r.kind === "ok") setState({ status: "ready", snapshot: r.snapshot });
+  }, []);
+
+  return { state, rescan: () => void rescan(), refresh: () => void refresh() };
+}
+
+// ---- claude 사용 가능 여부 ----
+
+let envPromise: Promise<ClaudeEnv> | undefined;
+
+/** 고치기 버튼을 그리기 전에 한 번만 물어본다. 확인 전에는 null */
+export function useClaudeEnv(): ClaudeEnv | null {
+  const [env, setEnv] = useState<ClaudeEnv | null>(null);
+  useEffect(() => {
+    let alive = true;
+    envPromise ??= getFixEnv();
+    void envPromise.then((e) => alive && setEnv(e));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return env;
 }
 
 // ---- 화면 전환 (주소의 # 부분) ----
@@ -94,6 +118,8 @@ export function useSnapshot(): { state: SnapState; rescan: () => void } {
 export type SeverityFilter = "all" | Severity;
 export type Route =
   | { name: "home" }
+  | { name: "usage" }
+  | { name: "links" }
   | { name: "section"; key: SectionKey; mode: ViewMode }
   | { name: "findings"; severity: SeverityFilter };
 
@@ -105,6 +131,8 @@ function parseRoute(hash: string): Route {
     const mode = q.get("mode");
     return { name: "section", key: parts[1], mode: mode === "usage" || mode === "idle" ? mode : "groups" };
   }
+  if (parts[0] === "usage") return { name: "usage" };
+  if (parts[0] === "links") return { name: "links" };
   if (parts[0] === "findings") {
     const s = q.get("sev");
     return { name: "findings", severity: s === "high" || s === "medium" || s === "low" ? s : "all" };
@@ -114,6 +142,8 @@ function parseRoute(hash: string): Route {
 
 function routeHash(r: Route): string {
   if (r.name === "section") return `#/section/${r.key}${r.mode === "groups" ? "" : `?mode=${r.mode}`}`;
+  if (r.name === "usage") return "#/usage";
+  if (r.name === "links") return "#/links";
   if (r.name === "findings") return `#/findings${r.severity === "all" ? "" : `?sev=${r.severity}`}`;
   return "#/";
 }
