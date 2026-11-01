@@ -1,5 +1,5 @@
 // 가짜 claude. 진짜처럼 인자를 받고, 환경변수 CHECKUP_FAKE_PLAN 이 가리키는 JSON 대로 작업 폴더를 고친 뒤 json 을 출력한다.
-// plan: { edits: [{ rel, content?, append?, delete? }], sleepMs?, argvLog?, exit?, isError?, usage?, cost?,
+// plan: { edits: [{ rel, content?, append?, delete? }], result?: string, sleepMs?, argvLog?, exit?, isError?, usage?, cost?,
 //         grandchildPidFile?, configProjectDir?: string[] (CLAUDE_CONFIG_DIR/projects 아래에 만들 하위 경로, 마지막에 {file} 이 있으면 파일도) }
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -9,6 +9,8 @@ if (argv[0] === "--version") {
   console.log("0.0.0-fake");
   process.exit(0);
 }
+// claude plugin disable/enable: CHECKUP_FAKE_PLUGIN_EXIT 종료 코드만 돌려준다 (기본 1 = 설정 파일로 대신하게)
+if (argv[0] === "plugin") process.exit(Number(process.env.CHECKUP_FAKE_PLUGIN_EXIT ?? 1));
 const plan = JSON.parse(readFileSync(process.env.CHECKUP_FAKE_PLAN!, "utf8"));
 if (plan.flood) process.stdout.write("x".repeat(plan.flood)); // 표준 입력을 읽기 전에 많이 쓰는 자식
 const stdin = plan.ignoreStdin ? "" : await Bun.stdin.text();
@@ -38,7 +40,7 @@ console.log(
   JSON.stringify({
     type: "result",
     is_error: !!plan.isError,
-    result: plan.isError ? "Not logged in" : "done",
+    result: plan.isError ? "Not logged in" : (plan.result ?? "done"),
     usage: plan.usage ?? { input_tokens: 120, output_tokens: 34, cache_creation_input_tokens: 1000, cache_read_input_tokens: 500 },
     total_cost_usd: plan.cost ?? 0.0123,
   }),

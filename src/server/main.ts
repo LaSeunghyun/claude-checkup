@@ -5,10 +5,13 @@ import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import index from "../ui/index.html";
 import { expandHome, isSecretName, readText, redactSecrets } from "../scan/fsutil";
-import { scan } from "../scan";
+import { scanWithCore, type ScanCore } from "../scan";
 import { appendHistory, previousOf } from "../scan/history";
-import type { Item, Progress, Settings, Snapshot } from "../shared/types";
-import { buildEvent, loadSettings, sendTelemetry, setTelemetry } from "./telemetry";
+import { ChangedSinceError, applyPlanned, listBackups, undo } from "../fix/backup";
+import { claudeEnv, resolveClaude, runClaudeCli } from "../fix/claude";
+import { ClaudeUnavailableError, FixRequestError, buildPreview, claudeJobOf, estimateUsage, resolveTarget, tokenWords, withArchive, type Built } from "../fix/preview";
+import type { ClaudeEnv, FixJob, FixRequest, Item, Progress, Settings, Snapshot } from "../shared/types";
+import { buildEvent, loadSettings, sendTelemetry, setClaudeFix, setTelemetry } from "./telemetry";
 
 const BODY_MAX = 400_000;
 
@@ -96,6 +99,7 @@ export function startServer(opts: ServerOpts): Running {
 
   let progress: Progress = { phase: "idle", filesDone: 0, filesTotal: 0 };
   let snapshot: Snapshot | null = null;
+  let core: ScanCore | null = null; // 마지막 점검의 대화 기록 집계. 미리 보기가 다시 쓴다
   let byId = new Map<string, Item>();
   let running: Promise<void> | null = null;
   let scanSeq = 0;
@@ -123,7 +127,8 @@ export function startServer(opts: ServerOpts): Running {
     progress = { phase: "inventory", filesDone: 0, filesTotal: 0, message: "설정을 읽는 중이에요" };
     running = (async () => {
       try {
-        const snap = await scan(home, { onProgress: (p) => (progress = p) });
+        const r = await scanWithCore(home, { onProgress: (p) => (progress = p) });
+        const snap = r.snap;
         // 기록은 실패해도 점검 결과를 막지 않는다
         try {
           const prev = previousOf(home, snap.summary);
@@ -133,6 +138,7 @@ export function startServer(opts: ServerOpts): Running {
           /* 기록을 못 남겨도 화면은 그대로 */
         }
         snapshot = snap;
+        core = r.core;
         byId = new Map(snap.items.map((i) => [i.id, i] as const));
         scanSeq++;
         progress = { phase: "done", filesDone: snap.stats.transcriptsScanned, filesTotal: snap.stats.transcriptsScanned };
@@ -144,6 +150,53 @@ export function startServer(opts: ServerOpts): Running {
       }
     })();
     return running;
+  }
+
+  // 적용·되돌리기 뒤 다시 점검한다. 돌던 점검은 바뀌기 전 파일을 읽었을 수 있어서 끝난 뒤 한 번 더 돌린다
+  async function rescanAfterChange(): Promise<void> {
+    if (running) await running;
+    await startScan();
+  }
+
+  // ---- 고치기 (design.md 8절) ----
+  interface JobState {
+    job: FixJob;
+    built?: Built;
+    applying?: boolean;
+  }
+  const jobs = new Map<string, JobState>();
+  const MAX_JOBS = 30;
+  let envCache: { at: number; env: ClaudeEnv } | null = null;
+  const fixEnv = async (): Promise<ClaudeEnv> => {
+    if (envCache && Date.now() - envCache.at < 30_000) return envCache.env;
+    const env = await claudeEnv();
+    envCache = { at: Date.now(), env };
+    return env;
+  };
+  // 못 찾으면 127 이 돌아오고, 플러그인 끄기는 설정 파일로 대신한다
+  const runClaude = (args: string[]) => runClaudeCli(resolveClaude(), args);
+
+  // 화면에 나가는 말: 비밀값을 가리고 홈 절대경로는 ~ 로 줄인다
+  const homeForms = [...new Set([home, home.replace(/\\/g, "/")])].sort((a, b) => b.length - a.length);
+  const say = (m: string): string => {
+    let out = redactSecrets(m);
+    for (const h of homeForms) {
+      for (let i = out.toLowerCase().indexOf(h.toLowerCase()); i >= 0; i = out.toLowerCase().indexOf(h.toLowerCase())) out = out.slice(0, i) + "~" + out.slice(i + h.length);
+    }
+    return out.replace(/~[\\/][^\s,)]*/g, (p) => p.replace(/\\/g, "/"));
+  };
+
+  // 무엇을 고쳤는지는 보내지 않고 종류만 (design.md 12절)
+  function trackFix(event: "fix_preview" | "fix_apply" | "fix_undo") {
+    const s = settings();
+    if (s.telemetry !== "on") return;
+    const ev = buildEvent(s, null, { event });
+    if (ev) sendTelemetry(ev);
+  }
+
+  function remember(st: JobState) {
+    jobs.set(st.job.id, st);
+    while (jobs.size > MAX_JOBS) jobs.delete(jobs.keys().next().value!);
   }
 
   // 화면(HTML 번들)은 Bun 이 직접 내보내는 응답이라 헤더를 못 붙인다. 안쪽 서버에 두고 여기서 받아 보안 헤더를 붙여 내보낸다
@@ -258,12 +311,13 @@ export function startServer(opts: ServerOpts): Running {
       "/api/settings": {
         GET: api(() => json(settings())),
         POST: api(async (req) => {
-          let body: { telemetry?: unknown } = {};
+          let body: { telemetry?: unknown; claudeFix?: unknown } = {};
           try {
             body = await req.json();
           } catch {
             /* 아래에서 걸러진다 */
           }
+          if (body.claudeFix === "agreed") return json(setClaudeFix(home));
           if (body.telemetry !== "on" && body.telemetry !== "off") return json({ error: 'telemetry 는 "on" 또는 "off" 여야 해요.' }, 400);
           const s = setTelemetry(home, body.telemetry);
           if (s.telemetry === "on") {
@@ -285,13 +339,145 @@ export function startServer(opts: ServerOpts): Running {
             return json({ error: "JSON 이 아니에요." }, 400);
           }
           if (body.event === "launch" || body.event === "scan_done") track(body.event);
-          else {
+          else if (body.event === "view_open") {
+            // fix_* 는 서버가 고치기 때 직접 보낸다. 화면이 보내는 것은 받지 않는다
             const s = settings();
             const ev = s.telemetry === "on" ? buildEvent(s, snapshot, body) : null;
             if (ev) sendTelemetry(ev);
           }
           return noContent();
         }),
+      },
+      "/api/fix/env": { GET: api(async () => json(await fixEnv())) },
+      "/api/fix/preview": {
+        POST: api(async (req) => {
+          let body: { findingId?: unknown; itemIds?: unknown } = {};
+          try {
+            body = await req.json();
+          } catch {
+            return json({ error: "JSON 이 아니에요." }, 400);
+          }
+          const snap = snapshot;
+          const c = core;
+          if (!snap || !c) return json({ error: "점검이 끝난 뒤에 고칠 수 있어요." }, 409);
+          let target;
+          try {
+            target = resolveTarget(snap, body);
+          } catch (e) {
+            if (e instanceof FixRequestError) return json({ error: e.message }, e.status);
+            throw e;
+          }
+          // 경로는 받지 않는다. 진단 id 와 그 진단 안의 항목 id 만 남긴다
+          const request: FixRequest = { findingId: target.finding.id, ...(Array.isArray(body.itemIds) ? { itemIds: target.entries.map((e) => e.item.id) } : {}) };
+          let env: ClaudeEnv = { available: false };
+          let estimate: FixJob["estimate"];
+          if (target.kind === "claude") {
+            // 못 쓰면 동의를 받아도 소용이 없으므로 먼저 본다
+            env = await fixEnv();
+            if (!env.available) return json({ error: say(new ClaudeUnavailableError(env.reason).message), fallback: "copy" }, 400);
+            if (settings().claudeFix !== "agreed") return json({ error: "Claude로 고치기 전에 안내를 확인하고 동의해 주세요.", needConsent: true }, 409);
+            try {
+              estimate = estimateUsage(claudeJobOf(home, target));
+            } catch (e) {
+              if (e instanceof FixRequestError) return json({ error: say(e.message), fallback: "copy" }, 400);
+              throw e;
+            }
+          }
+          const job: FixJob = {
+            id: randomBytes(12).toString("hex"),
+            request,
+            kind: target.kind,
+            status: "running",
+            message: estimate
+              ? `Claude가 변경안을 만들고 있어요. 예상 사용량은 ${tokenWords(estimate.inputTokens + estimate.outputTokens)}이에요.`
+              : "변경안을 계산하고 있어요.",
+            ...(estimate ? { estimate } : {}),
+          };
+          const st: JobState = { job };
+          remember(st);
+          trackFix("fix_preview");
+          void (async () => {
+            try {
+              const built = await buildPreview(home, c, snap, request, env);
+              st.built = built;
+              st.job = { ...st.job, status: "ready", message: undefined, preview: built.preview };
+            } catch (e) {
+              st.job = { ...st.job, status: "failed", message: say(e instanceof Error ? e.message : "변경안을 만들지 못했어요.") };
+            }
+          })();
+          return json(job);
+        }),
+      },
+      "/api/fix/job": {
+        GET: api((req) => {
+          const st = jobs.get(new URL(req.url).searchParams.get("id") ?? "");
+          return st ? json(st.job) : json({ error: "그 작업을 찾지 못했어요. 미리 보기를 다시 만들어 주세요." }, 404);
+        }),
+      },
+      "/api/fix/apply": {
+        POST: api(async (req) => {
+          let body: { jobId?: unknown; archive?: unknown } = {};
+          try {
+            body = await req.json();
+          } catch {
+            return json({ error: "JSON 이 아니에요." }, 400);
+          }
+          const st = typeof body.jobId === "string" ? jobs.get(body.jobId) : undefined;
+          if (!st) return json({ error: "그 작업을 찾지 못했어요. 미리 보기를 다시 만들어 주세요." }, 404);
+          if (st.job.status !== "ready" || !st.built) return json({ error: "미리 보기가 준비된 것만 적용할 수 있어요." }, 409);
+          if (st.built.preview.blocked) return json({ error: st.built.preview.blocked }, 409);
+          if (st.applying) return json({ error: "이미 적용하고 있어요." }, 409); // 두 번 눌러도 한 번만
+          st.applying = true;
+          const before = snapshot?.summary;
+          let manifest;
+          try {
+            manifest = await applyPlanned(home, withArchive(home, st.built, body.archive), st.job.request.findingId, runClaude);
+          } catch (e) {
+            if (e instanceof ChangedSinceError) return json({ error: e.message }, 409);
+            return json({ error: say(`적용하지 못했어요. 파일은 원래대로예요. ${e instanceof Error ? e.message : ""}`.trim()) }, 400);
+          } finally {
+            st.applying = false;
+          }
+          st.job = { ...st.job, status: "applied", backupId: manifest.id };
+          trackFix("fix_apply");
+          await rescanAfterChange();
+          if (before && snapshot) st.job = { ...st.job, result: { before, after: snapshot.summary } };
+          return json(st.job);
+        }),
+      },
+      "/api/fix/undo": {
+        POST: api(async (req) => {
+          let body: { backupId?: unknown } = {};
+          try {
+            body = await req.json();
+          } catch {
+            return json({ error: "JSON 이 아니에요." }, 400);
+          }
+          if (typeof body.backupId !== "string" || !body.backupId) return json({ error: "되돌릴 백업을 알려 주세요." }, 400);
+          const r = await undo(home, body.backupId, runClaude);
+          if (r.ok) {
+            for (const st of jobs.values()) if (st.job.backupId === body.backupId) st.job = { ...st.job, status: "undone", message: say(r.message) };
+            trackFix("fix_undo");
+            await rescanAfterChange();
+          }
+          return json({ ok: r.ok, message: say(r.message) });
+        }),
+      },
+      // 백업 요약 목록 (최근 것부터). 경로는 .claude 기준 상대 경로만
+      "/api/fix/backups": {
+        GET: api(() =>
+          json(
+            listBackups(home).map((m) => ({
+              id: m.id,
+              at: m.at,
+              findingId: m.findingId,
+              status: m.status ?? "applied",
+              files: m.files.map((f) => say(f.rel)),
+              moves: m.moves.map((x) => say(x.fromRel)),
+              plugins: m.pluginKeys.map(say),
+            })),
+          ),
+        ),
       },
     },
     fetch: (req) => (new URL(req.url).pathname.startsWith("/api/") ? json({ error: "찾을 수 없어요." }, 404) : serveUi(req)),

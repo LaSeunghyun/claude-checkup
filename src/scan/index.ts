@@ -325,6 +325,11 @@ function analyzeNow(home: string, core: ScanCore): Snapshot {
 
 // 점검 한 번: 집계 → 분석 → 할 일 카드의 사전 기대 효과
 export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot> {
+  return (await scanWithCore(home, opts)).snap;
+}
+
+// scan 과 같고, 고치기 미리 보기가 다시 쓸 집계(core)도 돌려준다
+export async function scanWithCore(home: string, opts: ScanOpts = {}): Promise<{ snap: Snapshot; core: ScanCore }> {
   const t0 = Date.now();
   const emit = (p: Progress) => opts.onProgress?.(p);
   emit({ phase: "inventory", filesDone: 0, filesTotal: 0, message: "설정을 읽는 중이에요" });
@@ -335,5 +340,5 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
   estimateGains(home, core, snap);
   snap.stats.durationMs = Date.now() - t0;
   emit({ phase: "done", filesDone: n, filesTotal: n });
-  return snap;
+  return { snap, core };
 }

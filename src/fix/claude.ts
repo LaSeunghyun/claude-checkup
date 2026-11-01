@@ -199,7 +199,8 @@ export interface PlanOpts {
   cmd?: string[];
 }
 
-export async function planWithClaude(home: string, opts: PlanOpts): Promise<Planned & { usage?: FixPreview["usage"]; warnings: string[] }> {
+// resultText 는 claude 가 마지막에 쓴 글(json 출력의 result). 보관 후보 블록을 읽는 데 쓴다
+export async function planWithClaude(home: string, opts: PlanOpts): Promise<Planned & { usage?: FixPreview["usage"]; warnings: string[]; resultText: string }> {
   const cmd = opts.cmd ?? resolveClaude();
   if (!cmd) throw new Error("이 컴퓨터에서 Claude Code 를 찾지 못했어요");
   // 쓰는 곳은 .claude 안뿐이다
@@ -366,7 +367,7 @@ export async function planWithClaude(home: string, opts: PlanOpts): Promise<Plan
             ...(typeof out.total_cost_usd === "number" ? { costUsd: out.total_cost_usd } : {}),
           }
         : undefined;
-    return { overlay: overlayFrom(writes.map((w): [string, string | null] => [w.abs, w.content])), changes, writes, moves: [], pluginKeys: [], hashes, usage, warnings };
+    return { overlay: overlayFrom(writes.map((w): [string, string | null] => [w.abs, w.content])), changes, writes, moves: [], pluginKeys: [], hashes, usage, warnings, resultText: typeof out.result === "string" ? out.result : "" };
   } finally {
     await removeDir(work);
     await removeDir(settingsFile);

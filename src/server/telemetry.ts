@@ -11,7 +11,8 @@ export const APP_VERSION = "0.1.0";
 
 export const NOT_YET_ID = "(동의하면 무작위 번호가 만들어져요)";
 
-const EVENTS = ["launch", "scan_done", "view_open"] as const;
+// fix_* 는 서버가 고치기 때 직접 보낸다. 무엇을 고쳤는지는 담지 않고 종류만 보낸다
+const EVENTS = ["launch", "scan_done", "view_open", "fix_preview", "fix_apply", "fix_undo"] as const;
 const VIEWS = ["home", "group", "item", "findings", "settings"] as const;
 
 export const settingsFile = (home: string): string => join(home, ".claude-checkup", "settings.json");
@@ -21,6 +22,7 @@ export function loadSettings(home: string): Settings {
   const telemetry = j?.telemetry === "on" || j?.telemetry === "off" ? j.telemetry : null;
   const s: Settings = { telemetry };
   if (telemetry === "on" && typeof j?.installId === "string" && /^[0-9a-f-]{36}$/i.test(j.installId)) s.installId = j.installId;
+  if (j?.claudeFix === "agreed") s.claudeFix = "agreed";
   return s;
 }
 
@@ -29,10 +31,18 @@ function save(home: string, s: Settings) {
   writeFileSync(settingsFile(home), JSON.stringify(s, null, 2));
 }
 
-// 동의하면 installId 를 만들고, 끄면 지운다
+// 동의하면 installId 를 만들고, 끄면 지운다. Claude 고치기 동의는 그대로 둔다
 export function setTelemetry(home: string, value: "on" | "off"): Settings {
   const cur = loadSettings(home);
   const next: Settings = value === "on" ? { telemetry: "on", installId: cur.installId ?? randomUUID() } : { telemetry: "off" };
+  if (cur.claudeFix) next.claudeFix = cur.claudeFix;
+  save(home, next);
+  return next;
+}
+
+// Claude 고치기 안내에 동의함 (design.md 8-3절). 통계 설정은 그대로 둔다
+export function setClaudeFix(home: string): Settings {
+  const next: Settings = { ...loadSettings(home), claudeFix: "agreed" };
   save(home, next);
   return next;
 }

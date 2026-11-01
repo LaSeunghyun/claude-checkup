@@ -231,6 +231,8 @@ export interface FixJob {
   preview?: FixPreview;
   backupId?: string;
   result?: { before: HistorySummary; after: HistorySummary };
+  // claude 고치기를 시작할 때의 예상 사용량 (복사할 파일 크기로 어림한 값). 실제 사용량은 preview.usage
+  estimate?: { inputTokens: number; outputTokens: number };
 }
 
 export interface ClaudeEnv {
@@ -264,4 +266,4 @@ export interface TelemetryEvent {
 // GET  /api/fix/job?id=        -> FixJob
 // POST /api/fix/apply          -> FixJob     body: { jobId: string; archive?: string[] }  archive = 보관 후보 중 사용자가 체크한 itemId
 // POST /api/fix/undo           -> { ok: boolean; message: string }  body: { backupId: string }
-// GET  /api/fix/backups        -> 백업 요약 목록
+// GET  /api/fix/backups        -> { id, at, findingId, status, files: string[], moves: string[], plugins: string[] }[]  최근 것부터, 경로는 .claude 기준
