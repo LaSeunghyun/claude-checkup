@@ -199,6 +199,7 @@ export function redactCommand(cmd: string): string {
     .replace(/(\/\/)[^\s/@:]+:[^\s/@]+@/g, "$1***@") // 주소 속 user:pass@
     .replace(/\/bot\d+:[A-Za-z0-9_-]+/g, "/bot***") // 텔레그램 봇 주소
     .replace(/(hooks\.slack\.com\/services\/)[\w/-]+/gi, "$1***") // 슬랙 웹훅 주소
+    .replace(/((?:Proxy-)?Authorization\s*:\s*)[^"'\r\n]+/gi, "$1***") // 방식 이름(Basic, Bearer, token, Bot ...)이 무엇이든 헤더 값 전체
     .replace(/\b(Basic|Bearer)(\s+)[^\s"']+/gi, "$1$2***")
     .replace(/(\s(?:-u|--user)[\s=]+["']?)[^\s:"']+:[^\s"']+/g, "$1***") // curl -u user:pass (콜론이 없는 -u 는 건드리지 않는다)
     .replace(/((?:\b|--?)[\w-]*(?:token|secret|key|password|passwd|auth|credential)[\w-]*(?:\s*[=:]\s*|\s+))(?!\*\*\*|(?:Basic|Bearer)\s+\*\*\*)("[^"]*"|'[^']*'|[^\s-]\S*)/gi, "$1***")

@@ -106,14 +106,20 @@ describe("보안 보강: 훅 명령 가리기, 막음, 중복", () => {
       "curl https://api.telegram.org/bot123456:ABCdefGHIjklMNOpqr/sendMessage",
       "curl -u user:pass https://h",
       'curl -H "Authorization: Basic dXNlcjpwYXNz" https://h',
+      'curl -H "Authorization: token abc123def456" https://h', // Basic/Bearer 가 아닌 방식: 이름 앞 40자에 값이 들어가는 길이
+      'curl -H "Authorization: Bot MTIzNDU2Nzg5.Gx7aBc" https://h',
     ];
     const rows = cmds.map((c, i) => hookLine(at(i * 1000), "Stop", c, 10, 0, "hook_success", "", uid(100 + i)));
     await inMini(cmds, { s1: rows }, (s) => {
       const json = JSON.stringify(s);
-      for (const bad of ["ghp_", "ABCdefGHI", "user:pass", "dXNlcjpwYXNz"]) expect(json).not.toContain(bad);
+      const bads = ["ghp_", "ABCdefGHI", "user:pass", "dXNlcjpwYXNz", "abc123def456", "MTIzNDU2Nzg5"];
+      for (const bad of bads) expect(json).not.toContain(bad);
       const hooks = s.items.filter((i) => i.hook);
-      expect(hooks).toHaveLength(4);
-      for (const h of hooks) expect(h.hook!.runs30).toBe(1); // 가려도 대화 기록과는 원문으로 이어진다
+      expect(hooks).toHaveLength(6);
+      for (const h of hooks) {
+        expect(h.hook!.runs30).toBe(1); // 가려도 대화 기록과는 원문으로 이어진다
+        for (const bad of bads) expect(`${h.name} ${h.id}`).not.toContain(bad); // 이름과 id 에도 없다
+      }
     });
   });
 
@@ -128,6 +134,10 @@ describe("보안 보강: 훅 명령 가리기, 막음, 중복", () => {
       ["curl -X POST https://hooks.slack.com/services/T00000000/B00000000/abcdEFGHijklMNOPqrst", "T00000000"],
       ['curl -H "Authorization: Basic dXNlcjpwYXNz" https://h', "dXNlcjpwYXNz"],
       ["curl -H 'Authorization: Bearer abc.def.ghi' https://h", "abc.def.ghi"],
+      ['curl -H "Authorization: token abc123def456" https://h', "abc123def456"],
+      ['curl -H "Authorization: Bot MTIzNDU2Nzg5.Gx7aBc" https://h', "MTIzNDU2Nzg5"],
+      ["curl -H 'authorization:ApiKey k-12345' https://h", "k-12345"], // 방식 이름이 무엇이든, 콜론 뒤 공백이 없어도
+      ['curl -H "Proxy-Authorization: Negotiate YIIabc123" https://h', "YIIabc123"],
       ["curl -u user:pass https://h", "user:pass"],
       ["curl --user user:pass https://h", "user:pass"],
       ["run " + "a1B2c3D4".repeat(4), "a1B2c3D4a1B2c3D4"], // 32자 영숫자 덩어리
