@@ -2,7 +2,7 @@
 // 비전문가용이라 메뉴 이름과 파일 위치를 그대로 적고, 지우는 일은 늘 백업이나 확인을 먼저 하게 한다.
 import type { Finding } from "../shared/types";
 import type { DiagnoseCtx } from "./findings";
-import { a4 } from "./findings";
+import { a4, isProjectMemoryDir } from "./findings";
 import { secretLineNumbers } from "./fsutil";
 import type { Entry } from "./inventory";
 import { MEMORY_INDEX_LINES } from "./inventory";
@@ -69,6 +69,19 @@ export function todoFor(f: Finding, ctx: DiagnoseCtx, byId: Map<string, Entry>):
       const names = es.map((x) => x.item.name);
       const noIndex = !ctx.entries.some((x) => x.item.kind === "memory-index" && x.memDir === e?.memDir);
       const line = "`- [제목](파일이름.md) - 한 줄 설명`";
+      // Claude Code 가 메모리로 읽지 않는 폴더(예: ~/.claude/memory)는 MEMORY.md 를 만들어도 안 닿는다. 직접 하는 두 방법만 알려 준다
+      if (noIndex && e?.memDir && !isProjectMemoryDir(e.memDir, ctx.claudeDir)) {
+        return {
+          steps: [
+            `${dir} 폴더는 Claude Code 가 메모리로 자동으로 읽는 곳이 아니라서, MEMORY.md 를 만들어도 AI에게 닿지 않아요.`,
+            `이어지지 않은 파일 ${names.length}개를 확인해요: ${list(names)}`,
+            `방법 하나: 계속 쓸 파일의 경로(예: ${dir}/파일이름.md)를 전역 CLAUDE.md(~/.claude/CLAUDE.md)에 한 줄씩 적어요. AI가 그 경로를 보고 필요할 때 찾아 읽어요.`,
+            `방법 둘: 계속 쓸 파일을 프로젝트 메모리 폴더(~/.claude/projects/<프로젝트>/memory/)로 옮기고, 그 폴더의 MEMORY.md 에 ${line} 형식으로 한 줄씩 추가해요.`,
+            "더 필요 없는 파일은 지우지 말고 다른 폴더로 옮겨 둬요.",
+          ],
+          prompt: `${dir} 폴더의 메모리 파일 ${names.length}개(${list(names, 30)})는 Claude Code 가 메모리로 자동으로 읽는 위치가 아니라서 AI에게 닿지 않아요. 파일마다 계속 쓸 만한지 판단해 줘. 계속 쓸 것은 (가) 전역 CLAUDE.md(~/.claude/CLAUDE.md)에 그 파일의 경로를 한 줄로 적는 방법과 (나) 프로젝트 메모리 폴더(~/.claude/projects/<프로젝트>/memory/)로 옮기고 그 폴더의 MEMORY.md 에 한 줄 추가하는 방법 중 어느 쪽이 맞는지 이유와 함께 제안해 줘. 오래돼서 필요 없어 보이는 것은 목록으로만 알려 주고, 내가 확인하기 전에는 파일을 옮기거나 지우지 마.`,
+        };
+      }
       return {
         steps: noIndex
           ? [

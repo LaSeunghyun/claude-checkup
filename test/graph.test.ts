@@ -25,7 +25,7 @@ const MEM = ".claude/projects/C--p/memory";
 
 function graphOf(home: string): { inv: Inventory; graph: MdGraph; broken: Map<string, string[]> } {
   const inv = buildInventory(home);
-  const { edges, broken } = buildLinks(inv.entries, inv.plugins);
+  const { edges, broken } = buildLinks(inv.entries, inv.plugins, home);
   return { inv, graph: buildGraph(inv.entries, edges), broken };
 }
 const idOf = (inv: Inventory, name: string): string => {
@@ -116,6 +116,76 @@ describe("연결 그래프", () => {
     expect(f).toHaveLength(1);
     expect(f[0].evidence).toContain("목차 파일이 없는 폴더");
     expect(f[0].items).toEqual([idOf(g.inv, "x.md")]);
+  });
+
+  // 7: ~/.claude/memory 처럼 Claude Code 가 메모리로 읽지 않는 폴더에는 MEMORY.md 를 만들어도 닿지 않는다
+  test("읽히지 않는 폴더(~/.claude/memory)의 목차 없음은 직접 하는 안내(manual)로 바뀐다", async () => {
+    const home = homeWith({ ".claude/memory/x.md": "목차가 없는 폴더의 파일\n" });
+    const s = await scan(home, { cache: false });
+    const f = s.findings.find((x) => x.rule === "unreachable-md")!;
+    expect(f.fixKind).toBe("manual");
+    const steps = f.steps.join("\n");
+    expect(steps).toContain("전역 CLAUDE.md");
+    expect(steps).toContain("~/.claude/projects/<프로젝트>/memory/");
+    expect(steps).not.toContain("MEMORY.md 가 없어요. 같은 폴더에 새로 만들어요");
+    expect(f.prompt).toContain("전역 CLAUDE.md");
+    expect(f.prompt).toContain("~/.claude/projects/<프로젝트>/memory/");
+    expect(f.prompt).not.toContain("MEMORY.md 를 새로 만들어");
+    expect(f.fix).not.toContain("MEMORY.md 에 한 줄씩 적어서 이어"); // 만들어도 안 닿는 방법은 권하지 않는다
+  });
+
+  test("프로젝트 메모리 폴더(~/.claude/projects/*/memory)에 MEMORY.md 가 없으면 만들라는 기존 안내(claude)를 유지한다", async () => {
+    const home = homeWith({ [`${MEM}/x.md`]: "목차가 없는 프로젝트 메모리\n" });
+    const s = await scan(home, { cache: false });
+    const f = s.findings.find((x) => x.rule === "unreachable-md")!;
+    expect(f.evidence).toContain("목차 파일이 없는 폴더");
+    expect(f.fixKind).toBe("claude");
+    expect(f.steps.join("\n")).toContain("MEMORY.md 가 없어요. 같은 폴더에 새로 만들어요");
+    expect(f.prompt).toContain("MEMORY.md 가 없어서");
+    expect(f.steps.join("\n")).not.toContain("전역 CLAUDE.md");
+  });
+
+  test("전역 CLAUDE.md 에 ~/ 경로를 적으면 언급 길이 생겨 닿는다 (읽히지 않는 폴더의 직접 해결 방법)", () => {
+    const g = graphOf(
+      homeWith({
+        ".claude/CLAUDE.md": "# 전역\n- 참고 자료: ~/.claude/memory/x.md\n",
+        ".claude/memory/x.md": "경로가 적힌 파일\n",
+        ".claude/memory/y.md": "아무도 안 적은 파일\n",
+      }),
+    );
+    expect(depth(g, "x.md")).toBe(1);
+    expect(depth(g, "y.md")).toBeNull();
+    const e = g.graph.edges.find((x) => x.to === idOf(g.inv, "x.md"))!;
+    expect(e.kind).toBe("mention");
+    expect(e.from).toBe(idOf(g.inv, "CLAUDE.md"));
+  });
+
+  // 8: MEMORY.md 는 앞 200줄만 읽히므로 201줄부터 적은 길은 AI에게 닿지 않는다
+  test("MEMORY.md 의 201줄부터 적힌 파일은 길이 없고, 5줄과 200줄에 적힌 파일은 닿는다", () => {
+    const rows = Array.from({ length: 205 }, (_, i) => `- 메모 ${i + 1}번째 줄`);
+    rows[0] = "# 목차";
+    rows[4] = "- [A](a.md) - 5번째 줄에 링크";
+    rows[199] = "- [C](c.md) - 200번째 줄에 링크";
+    rows[200] = "- [B](b.md) - 201번째 줄에 링크";
+    rows[201] = "- 이름만 적은 메모리: named-late";
+    rows[202] = "- 자세한 건 late-mention.md 에 있음";
+    const g = graphOf(
+      homeWith({
+        [`${MEM}/MEMORY.md`]: rows.join("\n") + "\n",
+        [`${MEM}/a.md`]: "a\n",
+        [`${MEM}/b.md`]: "b\n",
+        [`${MEM}/c.md`]: "c\n",
+        [`${MEM}/named-late.md`]: "named-late\n",
+        [`${MEM}/late-mention.md`]: "late-mention\n",
+      }),
+    );
+    expect(depth(g, "a.md")).toBe(1);
+    expect(depth(g, "c.md")).toBe(1); // 200번째 줄은 아직 읽힌다
+    expect(depth(g, "b.md")).toBeNull(); // 링크
+    expect(depth(g, "named-late.md")).toBeNull(); // 이름 적기
+    expect(depth(g, "late-mention.md")).toBeNull(); // 언급
+    // 목차 길은 잘린 부분을 뺀 만큼만 있다
+    expect(g.graph.edges.filter((x) => x.kind === "index").map((x) => x.to).sort()).toEqual([idOf(g.inv, "a.md"), idOf(g.inv, "c.md")].sort());
   });
 
   test("@import 는 import 길이고 불려 온 파일은 한 걸음 안쪽에 있다", () => {

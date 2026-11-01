@@ -3,9 +3,12 @@ import { appendFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { scan } from "../src/scan";
-import { RULE_IDS } from "../src/scan/findings";
+import { diagnose, RULE_IDS, type DiagnoseCtx } from "../src/scan/findings";
 import { isSecretName, readText } from "../src/scan/fsutil";
-import { redactCommand } from "../src/scan/inventory";
+import { buildGraph } from "../src/scan/graph";
+import { buildInventory, redactCommand } from "../src/scan/inventory";
+import { buildLinks } from "../src/scan/links";
+import { todoFor } from "../src/scan/todo";
 import { isSectionKey } from "../src/ui/model";
 import { memoryLinks, parseFrontmatter, estimateTokens, summarize } from "../src/scan/text";
 import type { Category, FixKind, Finding, Item, Severity, Snapshot } from "../src/shared/types";
@@ -25,13 +28,15 @@ const rule = (r: string): Finding[] => snap.findings.filter((f) => f.rule === r)
 const findingsOf = (id: string): Finding[] => snap.findings.filter((f) => f.items.includes(id));
 
 // design.md 7절(분류·심각도)과 8-2절(고치는 방법)을 그대로 옮긴 표. 규칙을 더하면 여기에도 한 줄 더한다.
-// fixKind = 개인 파일 기준, plugin = 플러그인 출처 항목이 낀 경우, outside = .claude 밖 파일이 낀 경우
-const RULE_TABLE: Record<string, { category: Category; severity: Severity[]; fixKind: FixKind; plugin?: FixKind; outside?: FixKind }> = {
+// fixKind = 개인 파일 기준, plugin = 플러그인 출처 항목이 낀 경우, outside = .claude 밖 파일이 낀 경우,
+// unloaded = MEMORY.md 가 없고 Claude Code 가 메모리로 읽지 않는 폴더(~/.claude/projects/*/memory 가 아닌 곳)
+// secret-in-file 은 플러그인 파일을 제외한다(사용자가 못 고치는 예시 키가 맨 위에 뜨지 않게)
+const RULE_TABLE: Record<string, { category: Category; severity: Severity[]; fixKind: FixKind; plugin?: FixKind; outside?: FixKind; unloaded?: FixKind }> = {
   "secret-in-file": { category: "risk", severity: ["high"], fixKind: "manual" },
   "memory-index-truncated": { category: "broken", severity: ["high"], fixKind: "claude" },
   "failing-hook": { category: "broken", severity: ["high", "medium"], fixKind: "manual", plugin: "mechanical" },
   "broken-link": { category: "leak", severity: ["medium"], fixKind: "claude" },
-  "unreachable-md": { category: "leak", severity: ["medium"], fixKind: "claude" },
+  "unreachable-md": { category: "leak", severity: ["medium"], fixKind: "claude", unloaded: "manual" },
   "unread-md": { category: "leak", severity: ["low"], fixKind: "mechanical" },
   "memory-index-near-limit": { category: "waste", severity: ["low"], fixKind: "claude" },
   "unused-plugin": { category: "waste", severity: ["medium"], fixKind: "mechanical" },
@@ -430,6 +435,12 @@ describe("진단 규칙: 모두 한 번 이상 나온다", () => {
     expect(alpha.evidence).not.toContain("목차 파일이 없는 폴더");
     const loose = f.find((x) => x.items.includes("memory:user::loose-note.md"))!;
     expect(loose.evidence).toContain("목차 파일이 없는 폴더");
+    // ~/.claude/memory 는 Claude Code 가 메모리로 읽는 곳이 아니라서, MEMORY.md 를 만들라고 하지 않고 직접 하는 방법만 알려 준다
+    expect(loose.fixKind).toBe("manual");
+    expect(loose.steps.join(" ")).toContain("전역 CLAUDE.md");
+    expect(loose.steps.join(" ")).toContain("~/.claude/projects/<프로젝트>/memory/");
+    expect(loose.steps.join(" ")).not.toContain("새로 만들어요");
+    expect(loose.prompt).toContain("전역 CLAUDE.md");
     expect(rule("orphan-memory")).toEqual([]);
   });
   test("MEMORY.md 에 이름만 적힌 파일은 길이 있고 목차와 이어진다", () => {
@@ -467,6 +478,25 @@ describe("진단 규칙: 모두 한 번 이상 나온다", () => {
   });
   test("secret-in-file: 이름 때문에 열지 않은 파일은 검사 대상이 아니다", () => {
     expect(rule("secret-in-file").flatMap((f) => f.items)).not.toContain("memory:project:fx-alpha:secret-token-notes.md");
+  });
+  test("secret-in-file: 값은 만들어지는 순간부터 없다 (가리기를 거치기 전 diagnose 와 todoFor 결과로 확인)", () => {
+    const inv = buildInventory(fx.home);
+    const { broken, edges } = buildLinks(inv.entries, inv.plugins, fx.home);
+    const ctx: DiagnoseCtx = { entries: inv.entries, plugins: inv.plugins, broken, graph: buildGraph(inv.entries, edges), claudeDir: join(fx.home, ".claude") };
+    // 대조: 원문에는 값이 정말 들어 있다 (없으면 아래 단언이 아무것도 못 잡는다)
+    const raw = inv.entries.filter((e) => e.item.id === "skill:user::good-skill" || e.item.id === "memory:project:fx-alpha:notes-extra.md");
+    expect(raw).toHaveLength(2);
+    for (const e of raw) expect(e.text).toMatch(/ghp_FAKEFAKEFAKEFAKE1234/);
+    const found = diagnose(ctx).filter((f) => f.rule === "secret-in-file");
+    expect(found).toHaveLength(2);
+    const byId = new Map(inv.entries.map((e) => [e.item.id, e] as const));
+    for (const f of found) {
+      const t = todoFor(f, ctx, byId);
+      const fields = [f.title, f.why, f.fix, f.evidence, f.items.join(" "), ...t.steps, t.prompt, t.command ?? ""];
+      expect(t.steps.length).toBeGreaterThanOrEqual(2);
+      for (const text of fields) for (const v of ["ghp_", "xoxb-", "FAKEFAKE"]) expect(text).not.toContain(v);
+      expect(JSON.stringify([f, t])).not.toMatch(/ghp_|xoxb-|FAKEFAKE/);
+    }
   });
   test("duplicate-rule: 25자 이상 같은 줄이 지시문·MEMORY.md 2곳에", () => {
     const f = rule("duplicate-rule");
@@ -570,7 +600,8 @@ describe("진단 분류와 고치는 방법 (design.md 7절, 8-2절)", () => {
       expect(f.category).toBe(want.category);
       expect(want.severity).toContain(f.severity);
       const plugin = f.items.some((id) => find(id).source.type === "plugin");
-      expect(f.fixKind).toBe(plugin && want.plugin ? want.plugin : want.fixKind);
+      const unloaded = f.evidence.includes("목차 파일이 없는 폴더") && !find(f.items[0]).path!.includes("/.claude/projects/");
+      expect(f.fixKind).toBe(plugin && want.plugin ? want.plugin : unloaded && want.unloaded ? want.unloaded : want.fixKind);
     }
   });
   test("위험은 늘 맨 위에 온다", () => {
@@ -603,6 +634,8 @@ describe("진단 분류와 고치는 방법 (design.md 7절, 8-2절)", () => {
         ".claude.json": JSON.stringify({ projects: { [proj]: {} } }),
         "work/p/CLAUDE.md": `# 프로젝트\n${same}\n`,
         ".claude/skills/leaky/SKILL.md": "---\nname: leaky\ndescription: 비밀값이 들어 있는 개인 작업 설명서예요.\n---\n키: AKIAABCDEFGHIJKLMNOP\n",
+        // 플러그인 파일 안의 키 모양(대개 예시)은 사용자가 못 고치므로 secret-in-file 대상이 아니다 (음성 대조)
+        ".claude/plugins/cache/mkt/pp/1.0.0/skills/doc-example/SKILL.md": "---\nname: doc-example\ndescription: Plugin skill that mentions an example token for documentation purposes only.\n---\n예시: ghp_FAKEFAKEFAKEFAKE9999\n",
         ".claude/projects/C--mini/s.jsonl": [hookLine(at, "Stop", failCmd, 10, 1, "hook_non_blocking_error"), hookLine(at, "Stop", slowCmd, 4000)].join("\n") + "\n",
       });
       const s = await scan(home, { now: fx.now, cache: false });
@@ -625,6 +658,12 @@ describe("진단 분류와 고치는 방법 (design.md 7절, 8-2절)", () => {
       expect(sec.evidence).toBe("5번째 줄");
       expect(sec.fixKind).toBe("manual");
       expect(JSON.stringify(s)).not.toContain("AKIAABCDEFGH");
+      expect(JSON.stringify(s)).not.toContain("ghp_FAKE");
+      // 음성 대조가 헛돌지 않게: 그 플러그인 파일은 실제로 항목으로 읽혔고 본문에 키 모양이 있다
+      const ex = s.items.find((i) => i.id === "skill:plugin:pp:doc-example")!;
+      expect(ex.enabled).toBe(true);
+      expect(readText(join(pdir, "skills", "doc-example", "SKILL.md"))).toContain("ghp_FAKEFAKEFAKEFAKE9999");
+      expect(s.findings.some((f) => f.items.includes(ex.id) && f.rule === "secret-in-file")).toBe(false);
     } finally {
       rmSync(d, { recursive: true, force: true });
     }

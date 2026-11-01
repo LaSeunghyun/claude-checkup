@@ -241,7 +241,7 @@ export async function scan(home: string, opts: ScanOpts = {}): Promise<Snapshot>
   emit({ phase: "diagnose", filesDone: tr.files.length, filesTotal: tr.files.length, message: "진단하는 중이에요" });
   const ux = aggregate(tr.files, days);
   applyUsage(inv, ux);
-  const { broken, edges } = buildLinks(inv.entries, inv.plugins);
+  const { broken, edges } = buildLinks(inv.entries, inv.plugins, home);
   const graph = buildGraph(inv.entries, edges);
   const dctx: DiagnoseCtx = { entries: inv.entries, plugins: inv.plugins, broken, graph, claudeDir };
   const findings = diagnose(dctx);

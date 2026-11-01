@@ -2,7 +2,7 @@
 import { basename, dirname, resolve } from "node:path";
 import type { MdEdge } from "../shared/types";
 import { exists } from "./fsutil";
-import type { Entry, PluginEntry } from "./inventory";
+import { MEMORY_INDEX_LINES, type Entry, type PluginEntry } from "./inventory";
 import { memoryKey, memoryLinks, stripCode } from "./text";
 
 function link(from: Entry, to: Entry) {
@@ -25,10 +25,13 @@ export interface LinkResult {
   edges: MdEdge[]; // md 파일 사이 길. 같은 쌍이 여러 번 나올 수 있어서 buildGraph 가 하나로 합친다
 }
 
-// 본문 속 md 파일 이름 (코드 표기 안의 것도 센다). 홈(~)·절대경로·주소 속 이름은 제외한다
-const MD_NAME = /(?<![\w./\\~:@-])((?:\.{1,2}\/|[\w.-]+\/)*[\w.-]+\.md)(?![\w-])/gi;
+// 본문 속 md 파일 이름 (코드 표기 안의 것도 센다). `~/` 로 시작하는 경로는 home 을 알 때만 풀고, 절대경로·주소 속 이름은 제외한다
+const MD_NAME = /(?<![\w./\\~:@-])((?:~\/)?(?:\.{1,2}\/|[\w.-]+\/)*[\w.-]+\.md)(?![\w-])/gi;
 
-export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult {
+// MEMORY.md 는 앞 MEMORY_INDEX_LINES 줄만 AI에게 읽힌다. 목차 길은 그 안에서만 만든다
+const readable = (e: Entry): string => (e.item.kind === "memory-index" && e.text ? e.text.split("\n").slice(0, MEMORY_INDEX_LINES).join("\n") : (e.text ?? ""));
+
+export function buildLinks(entries: Entry[], plugins: PluginEntry[], home?: string): LinkResult {
   const broken = new Map<string, string[]>();
   const edges: MdEdge[] = [];
   // MEMORY.md 가 가리키는 길은 어떻게 찾았든(링크, 이름 적기, 언급) 목차 길이다
@@ -76,23 +79,30 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
   for (const e of entries) {
     if (!e.memDir || !e.text) continue;
     const { md, wiki } = memoryLinks(e.text);
+    // 연결(links)과 끊긴 링크는 파일 전체로, 길(edges)은 읽히는 부분(MEMORY.md 는 앞 200줄)으로만 만든다
+    const shown = readable(e);
+    const seen = shown === e.text ? { md, wiki } : memoryLinks(shown);
+    const shownMd = new Set(seen.md);
+    const shownWiki = new Set(seen.wiki);
     const dir = resolve(e.memDir).toLowerCase();
     for (const w of new Set(wiki)) {
       const target = memByKey.get(`${dir}|${memoryKey(w)}`);
       if (target) {
         link(e, target);
-        edge(e, target, "link");
+        if (shownWiki.has(w)) edge(e, target, "link");
       }
     }
     // MEMORY.md 가 링크 없이 파일 이름만 적어 둔 경우도 목차에 있는 것으로 본다
     if (e.item.kind === "memory-index") {
       const plain = stripCode(e.text).toLowerCase();
+      const plainShown = shown === e.text ? plain : stripCode(shown).toLowerCase();
       for (const x of entries) {
         if (x.item.kind !== "memory" || !x.abs || !x.memDir || resolve(x.memDir).toLowerCase() !== dir) continue;
         const stem = basename(x.abs).replace(/\.md$/i, "").toLowerCase();
-        if (new RegExp(`(?<![\\w-])${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(plain)) {
+        const re = new RegExp(`(?<![\\w-])${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+        if (re.test(plain)) {
           link(e, x);
-          edge(e, x, "index");
+          if (re.test(plainShown)) edge(e, x, "index");
         }
       }
     }
@@ -112,7 +122,7 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
       if (!ok) bad.push(t);
       else if (target) {
         link(e, target);
-        edge(e, target, "link");
+        if (shownMd.has(t)) edge(e, target, "link");
       }
     }
     if (bad.length) broken.set(e.item.id, bad);
@@ -125,8 +135,10 @@ export function buildLinks(entries: Entry[], plugins: PluginEntry[]): LinkResult
     if (!e.abs || !e.text || !MD_KINDS.has(e.item.kind)) continue;
     const dir = dirname(e.abs);
     const seen = new Set<Entry>();
-    for (const m of e.text.matchAll(MD_NAME)) {
-      const t = nodeByPath.get(resolve(dir, m[1]).toLowerCase());
+    for (const m of readable(e).matchAll(MD_NAME)) {
+      const fromHome = m[1].startsWith("~/");
+      if (fromHome && !home) continue;
+      const t = nodeByPath.get((fromHome ? resolve(home!, m[1].slice(2)) : resolve(dir, m[1])).toLowerCase());
       if (t && t !== e && !seen.has(t)) {
         seen.add(t);
         edge(e, t, "mention");

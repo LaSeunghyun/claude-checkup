@@ -1,5 +1,5 @@
 // 진단 규칙 (design.md 7절). 문구는 비전문가용 해요체, 단정 대신 "~일 수 있어요".
-import { isAbsolute, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import type { Category, Finding, FixKind, MdGraph, Severity } from "../shared/types";
 import { secretLineNumbers } from "./fsutil";
 import type { Entry, PluginEntry } from "./inventory";
@@ -50,6 +50,7 @@ interface RuleMeta {
   fixKind: FixKind; // 8-2절, 개인 파일 기준
   whenPlugin?: FixKind; // 플러그인 출처 항목이 낄 때 (플러그인 파일은 고치지 않고, 플러그인 훅은 플러그인을 끈다)
   whenOutside?: FixKind; // .claude 밖 파일(프로젝트 CLAUDE.md, AGENTS.md)이 낄 때
+  whenUnloaded?: FixKind; // Claude Code 가 메모리로 읽지 않는 폴더(예: ~/.claude/memory)에 목차가 없을 때. MEMORY.md 를 만들어도 안 닿는다
 }
 
 const RULES: Record<RuleId, RuleMeta> = {
@@ -57,7 +58,7 @@ const RULES: Record<RuleId, RuleMeta> = {
   "memory-index-truncated": { category: "broken", fixKind: "claude" },
   "failing-hook": { category: "broken", fixKind: "manual", whenPlugin: "mechanical" },
   "broken-link": { category: "leak", fixKind: "claude" },
-  "unreachable-md": { category: "leak", fixKind: "claude" },
+  "unreachable-md": { category: "leak", fixKind: "claude", whenUnloaded: "manual" },
   "unread-md": { category: "leak", fixKind: "mechanical" },
   "memory-index-near-limit": { category: "waste", fixKind: "claude" },
   "unused-plugin": { category: "waste", fixKind: "mechanical" },
@@ -78,8 +79,15 @@ const insideClaude = (e: Entry, claudeDir: string): boolean => {
   return !!rel && !rel.startsWith("..") && !isAbsolute(rel);
 };
 
-function fixKindOf(rule: RuleId, es: Entry[], claudeDir: string): FixKind {
+// Claude Code 가 메모리로 읽는 폴더: HOME/.claude/projects/<프로젝트>/memory. ~/.claude/memory 같은 곳은 읽지 않는다
+export function isProjectMemoryDir(dir: string, claudeDir: string): boolean {
+  const rel = relative(join(claudeDir, "projects"), dir);
+  return !rel.startsWith("..") && /^[^\\/]+[\\/]memory$/i.test(rel);
+}
+
+function fixKindOf(rule: RuleId, es: Entry[], claudeDir: string, unloaded = false): FixKind {
   const m = RULES[rule];
+  if (m.whenUnloaded && unloaded) return m.whenUnloaded;
   if (m.whenPlugin && es.some((e) => e.item.source.type === "plugin")) return m.whenPlugin;
   if (m.whenOutside && es.some((e) => !insideClaude(e, claudeDir))) return m.whenOutside;
   return m.fixKind;
@@ -104,16 +112,17 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
   const counters = new Map<string, number>();
   const { entries } = ctx;
   const byId = new Map(entries.map((e) => [e.item.id, e] as const));
-  const push = (rule: RuleId, severity: Severity, f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "gain" | "severity" | "steps" | "prompt" | "command">) => {
+  const push = (rule: RuleId, severity: Severity, f: Omit<Finding, "id" | "rule" | "category" | "fixKind" | "gain" | "severity" | "steps" | "prompt" | "command">, unloaded = false) => {
     const n = (counters.get(rule) ?? 0) + 1;
     counters.set(rule, n);
     const es = f.items.map((id) => byId.get(id)).filter((e): e is Entry => !!e);
-    out.push({ id: `${rule}:${n}`, rule, category: categoryOf(rule), fixKind: fixKindOf(rule, es, ctx.claudeDir), severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
+    out.push({ id: `${rule}:${n}`, rule, category: categoryOf(rule), fixKind: fixKindOf(rule, es, ctx.claudeDir, unloaded), severity, ...f, steps: [], prompt: "" }); // 할 일은 todo.ts 가 채운다
   };
 
   // secret-in-file: 읽히는 글 파일 원문에 토큰·키 모양 값이 있으면 파일마다 1건. 줄 번호만 남기고 값은 저장하지 않는다
+  // 플러그인 파일은 뺀다: 사용자가 고칠 수 없고 대개 예시 키라, 맨 위 위험 칸에 오탐으로 뜨기 때문이다
   for (const e of entries) {
-    if (!SECRET_SCAN_KINDS.has(e.item.kind) || !e.item.enabled || !e.text) continue; // 이름 때문에 열지 않은 파일은 text 가 없다
+    if (!SECRET_SCAN_KINDS.has(e.item.kind) || !e.item.enabled || e.item.source.type === "plugin" || !e.text) continue; // 이름 때문에 열지 않은 파일은 text 가 없다
     const lines = secretLineNumbers(e.text);
     if (!lines.length) continue;
     push("secret-in-file", "high", {
@@ -171,13 +180,24 @@ export function diagnose(ctx: DiagnoseCtx): Finding[] {
     const lost = files.filter((e) => depthOf.get(e.item.id) === null);
     if (!lost.length) continue;
     const noIndex = !list.some((e) => e.item.kind === "memory-index");
-    push("unreachable-md", "medium", {
-      title: `${where(lost[0])}메모리 폴더에 AI가 찾아갈 길이 없는 파일이 ${lost.length}개 있어요`,
-      why: "AI는 매번 실리는 CLAUDE.md 와 MEMORY.md 에서 시작해 링크를 따라 메모리를 찾아가요. 어디서도 이어지지 않은 파일은 AI가 있는 줄 몰라서 읽지 않을 수 있어요.",
-      fix: "MEMORY.md 에 한 줄씩 적어서 이어 주세요. 필요 없는 파일은 보관하거나 지워 주세요.",
-      items: lost.map((e) => e.item.id),
-      evidence: `${noIndex ? "목차 파일이 없는 폴더, " : ""}메모리 파일 ${files.length}개 중 ${lost.length}개: ${nameList(lost, 3)}`,
-    });
+    // 목차가 없는데 Claude Code 가 메모리로 읽는 폴더도 아니면, MEMORY.md 를 만들어도 AI에게 닿지 않는다 (직접 하는 안내로 바꾼다)
+    const unloaded = noIndex && !isProjectMemoryDir(list[0].memDir!, ctx.claudeDir);
+    push(
+      "unreachable-md",
+      "medium",
+      {
+        title: `${where(lost[0])}메모리 폴더에 AI가 찾아갈 길이 없는 파일이 ${lost.length}개 있어요`,
+        why: unloaded
+          ? "이 폴더는 Claude Code 가 메모리로 자동으로 읽는 곳이 아니라서, 여기에 MEMORY.md 를 만들어도 AI에게 닿지 않아요. 어디서도 이어지지 않은 파일은 AI가 있는 줄 몰라서 읽지 않을 수 있어요."
+          : "AI는 매번 실리는 CLAUDE.md 와 MEMORY.md 에서 시작해 링크를 따라 메모리를 찾아가요. 어디서도 이어지지 않은 파일은 AI가 있는 줄 몰라서 읽지 않을 수 있어요.",
+        fix: unloaded
+          ? "전역 CLAUDE.md 에 그 파일의 경로를 적거나, 프로젝트 메모리 폴더로 옮겨 MEMORY.md 에 적어 주세요. 필요 없는 파일은 보관하거나 지워 주세요."
+          : "MEMORY.md 에 한 줄씩 적어서 이어 주세요. 필요 없는 파일은 보관하거나 지워 주세요.",
+        items: lost.map((e) => e.item.id),
+        evidence: `${noIndex ? "목차 파일이 없는 폴더, " : ""}메모리 파일 ${files.length}개 중 ${lost.length}개: ${nameList(lost, 3)}`,
+      },
+      unloaded,
+    );
   }
   for (const list of dirs.values()) {
     const linked = list.filter((e) => e.item.kind === "memory" && typeof depthOf.get(e.item.id) === "number");
