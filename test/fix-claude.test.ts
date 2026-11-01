@@ -184,7 +184,7 @@ describe("resolveClaude / claudeEnv", () => {
       expect(e.available).toBe(false);
       expect(e.reason).toBeTruthy();
       expect(e.reason).not.toMatch(/ENOENT|spawn/);
-      expect(e.reason).not.toMatch(/[—–]/);
+      expect(e.reason).not.toMatch(new RegExp("[\u2014\u2013]"));
     } finally {
       delete process.env.CLAUDE_CHECKUP_CLAUDE;
     }
