@@ -15,6 +15,25 @@ Claude Code에 쌓아 둔 설정(CLAUDE.md, 메모리, 작업 설명서, 에이�
 Windows는 `claude-checkup.exe`를 더블클릭하면 돼요. 브라우저가 열리고 점검이 시작돼요.
 끄려면 열린 창(터미널)을 닫으면 돼요.
 
+Mac은 터미널(응용 프로그램 > 유틸리티 > 터미널)을 열고 아래 한 줄을 붙여 넣으면 돼요.
+설치가 끝나면 바로 브라우저가 열려요.
+
+```bash
+curl -fsSL https://github.com/OWNER/claude-checkup/releases/latest/download/install.sh | sh
+```
+
+다음부터는 터미널에서 `~/.claude-checkup/bin/claude-checkup` 으로 실행해요.
+끄려면 터미널에서 Ctrl+C 를 누르면 돼요.
+
+### 배포 파일 만들기
+
+```bash
+bun run release
+```
+
+`dist/` 에 Windows, Mac(Apple 칩, 인텔), Linux 실행 파일과 `install.sh` 가 생겨요.
+GitHub Releases 에 이 파일들을 그대로 올리면 위 설치 명령이 최신 판을 받아요.
+
 소스로 실행하려면 [Bun](https://bun.sh) 1.4 이상이 필요해요.
 
 ```bash

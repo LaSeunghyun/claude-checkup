@@ -11,7 +11,8 @@
     "build:win": "bun build src/server/main.ts --compile --target=bun-windows-x64 --outfile dist/claude-checkup.exe",
     "build:mac": "bun build src/server/main.ts --compile --target=bun-darwin-arm64 --outfile dist/claude-checkup-mac",
     "build:mac-x64": "bun build src/server/main.ts --compile --target=bun-darwin-x64 --outfile dist/claude-checkup-mac-x64",
-    "build:linux": "bun build src/server/main.ts --compile --target=bun-linux-x64 --outfile dist/claude-checkup-linux"
+    "build:linux": "bun build src/server/main.ts --compile --target=bun-linux-x64 --outfile dist/claude-checkup-linux",
+    "release": "bun run build:win && bun run build:mac && bun run build:mac-x64 && bun run build:linux && cp install.sh dist/install.sh"
   },
   "dependencies": {
     "react": "19",
