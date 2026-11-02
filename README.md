@@ -19,7 +19,7 @@ Mac은 터미널(응용 프로그램 > 유틸리티 > 터미널)을 열고 아�
 설치가 끝나면 바로 브라우저가 열려요.
 
 ```bash
-curl -fsSL https://github.com/OWNER/claude-checkup/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/LaSeunghyun/claude-checkup/releases/latest/download/install.sh | sh
 ```
 
 다음부터는 터미널에서 `~/.claude-checkup/bin/claude-checkup` 으로 실행해요.

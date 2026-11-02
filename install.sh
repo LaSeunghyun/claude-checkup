@@ -3,7 +3,7 @@
 # 사용: curl -fsSL <이 파일 주소> | sh
 set -eu
 
-REPO="${CHECKUP_REPO:-OWNER/claude-checkup}"
+REPO="${CHECKUP_REPO:-LaSeunghyun/claude-checkup}"
 BASE="${CHECKUP_BASE_URL:-https://github.com/$REPO/releases/latest/download}"
 
 os=$(uname -s)
