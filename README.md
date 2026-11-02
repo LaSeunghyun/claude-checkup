@@ -12,8 +12,15 @@ Claude Code에 쌓아 둔 설정(CLAUDE.md, 메모리, 작업 설명서, 에이�
 
 ## 실행
 
-Windows는 `claude-checkup.exe`를 더블클릭하면 돼요. 브라우저가 열리고 점검이 시작돼요.
-끄려면 열린 창(터미널)을 닫으면 돼요.
+Windows는 PowerShell(시작 메뉴에서 "PowerShell" 검색)을 열고 아래 한 줄을 붙여 넣으면 돼요.
+설치가 끝나면 바로 브라우저가 열려요.
+
+```powershell
+irm https://github.com/LaSeunghyun/claude-checkup/releases/latest/download/install.ps1 | iex
+```
+
+다음부터는 `%USERPROFILE%\.claude-checkup\bin\claude-checkup.exe` 를 더블클릭하면 돼요.
+끄려면 열린 창을 닫으면 돼요.
 
 Mac은 터미널(응용 프로그램 > 유틸리티 > 터미널)을 열고 아래 한 줄을 붙여 넣으면 돼요.
 설치가 끝나면 바로 브라우저가 열려요.
@@ -31,7 +38,7 @@ curl -fsSL https://github.com/LaSeunghyun/claude-checkup/releases/latest/downloa
 bun run release
 ```
 
-`dist/` 에 Windows, Mac(Apple 칩, 인텔), Linux 실행 파일과 `install.sh` 가 생겨요.
+`dist/` 에 Windows, Mac(Apple 칩, 인텔), Linux 실행 파일과 `install.sh`, `install.ps1` 이 생겨요.
 GitHub Releases 에 이 파일들을 그대로 올리면 위 설치 명령이 최신 판을 받아요.
 
 소스로 실행하려면 [Bun](https://bun.sh) 1.4 이상이 필요해요.
