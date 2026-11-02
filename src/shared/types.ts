@@ -94,7 +94,7 @@ export interface Finding {
 export interface Group {
   id: string;
   kind: ItemKind;
-  title: string; // 예: "nestads-product-review", "개인", "기본 제공"
+  title: string; // 예: "team-review", "개인", "기본 제공"
   source: Source;
   items: string[];
 }
